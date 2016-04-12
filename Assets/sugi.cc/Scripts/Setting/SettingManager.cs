@@ -43,6 +43,11 @@ namespace sugi.cc
 		Rect windowRect = Rect.MinMaxRect(0, 0, Math.Min(Screen.width, 1024f), Math.Min(Screen.height, 768f));
 		Vector2 scroll;
 
+		public void HideGUI()
+		{
+			edit = false;
+			Cursor.visible = false;
+		}
 
 		// Update is called once per frame
 		void Update()
