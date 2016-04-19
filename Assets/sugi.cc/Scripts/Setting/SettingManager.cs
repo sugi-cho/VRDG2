@@ -69,7 +69,7 @@ namespace sugi.cc
 		void OnWindow(int id)
 		{
 			scroll = GUILayout.BeginScrollView(scroll);
-			foreach (var setting in settings)
+			settings.ForEach(setting =>
 			{
 				if (setting.edit)
 				{
@@ -82,16 +82,24 @@ namespace sugi.cc
 					if (GUILayout.Button("Save and Close"))
 						setting.SaveAndClose();
 					if (GUILayout.Button("Cancel"))
-						setting.edit = false;
+						setting.CancelAndClose();
 					GUILayout.EndHorizontal();
 					GUILayout.EndVertical();
 					GUILayout.EndHorizontal();
 				}
 				else if (GUILayout.Button(setting.filePath))
 					setting.edit = true;
-			}
+			});
 			GUILayout.EndScrollView();
 			GUI.DragWindow();
+		}
+
+		void OnRenderObject()
+		{
+			settings.ForEach(setting =>
+			{
+				setting.OnRenderObjectFunc(Camera.current);
+			});
 		}
 
 		[System.Serializable]
@@ -125,6 +133,7 @@ namespace sugi.cc
 			public void CancelAndClose()
 			{
 				Helper.LoadJsonFile(this, filePath);
+				dataEditor = new FieldEditor(this);
 				edit = false;
 				OnClose();
 			}
@@ -133,6 +142,8 @@ namespace sugi.cc
 			{
 				dataEditor.OnGUI();
 			}
+
+			public virtual void OnRenderObjectFunc(Camera cam) { }
 
 			protected virtual void OnLoad()
 			{

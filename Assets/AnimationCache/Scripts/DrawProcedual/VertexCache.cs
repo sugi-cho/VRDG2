@@ -1,16 +1,21 @@
 ﻿using UnityEngine;
 using UnityEditor;
 using System.Collections;
+using sugi.cc;
 
 public class VertexCache : MonoBehaviour
 {
 	public VertexCacheData data;
 	public Material mat;
 
+	public IntEvent onSetIndicesCount;
+
 	// Use this for initialization
 	void Start()
 	{
 		data.CreateBuffer();
+		onSetIndicesCount.Invoke(data.indices.Length);
+
 		mat.SetBuffer("_Indices", data.indicesBuffer);
 		mat.SetBuffer("_UV", data.uvBuffer);
 		mat.SetBuffer("_VertexData", data.verticesBuffer);
@@ -25,10 +30,4 @@ public class VertexCache : MonoBehaviour
 		data.ReleaseBuffers();
 	}
 
-	// Update is called once per frame
-	void OnRenderObject()
-	{
-		mat.SetPass(0);
-		Graphics.DrawProcedural(MeshTopology.Triangles, data.indices.Length);
-	}
 }

@@ -14,4 +14,8 @@ namespace sugi.cc
 	public class RenderTextureEvent : UnityEvent<RenderTexture> { }
 	[System.Serializable]
 	public class Matrix4x4Event : UnityEvent<Matrix4x4> { }
+	[System.Serializable]
+	public class ComputeBufferEvent : UnityEvent<ComputeBuffer> { }
+	[System.Serializable]
+	public class PropComuteBufferEvent : UnityEvent<string, ComputeBuffer> { }
 }
