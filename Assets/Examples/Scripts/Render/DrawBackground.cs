@@ -9,15 +9,15 @@ public class DrawBackground : MonoBehaviour
 	public Color clearColor;
 	public RenderTexture output;
 	// Use this for initialization
-	void Start ()
+	void Start()
 	{
-		output = Helper.CreateRenderTexture (Screen.width, Screen.height, output);
+		output = Helper.CreateRenderTexture(Screen.width, Screen.height, output);
 	}
 
-	void OnPostRender ()
+	void OnPostRender()
 	{
-		Graphics.SetRenderTarget (output);
-		GL.Clear (true, true, clearColor);
-		bgMat.DrawFullscreenQuad (pass);
+		Graphics.SetRenderTarget(output);
+		GL.Clear(true, true, clearColor);
+		bgMat.DrawFullscreenQuad(pass);
 	}
 }

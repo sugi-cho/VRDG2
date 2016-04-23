@@ -45,7 +45,7 @@ namespace sugi.cc
 		{
 			if (rt != null)
 				ReleaseRenderTexture(rt);
-			rt = new RenderTexture(width, height, 16, format);
+			rt = new RenderTexture(width, height, 24, format);
 			rt.wrapMode = TextureWrapMode.Repeat;
 			rt.filterMode = FilterMode.Bilinear;
 			rt.Create();
@@ -62,6 +62,10 @@ namespace sugi.cc
 		public static bool CheckRtSize(Texture source, Texture target, int downSample = 0)
 		{
 			return target == null || target.width != source.width >> downSample || target.height != source.height >> downSample;
+		}
+		public static bool IsValidRtSize(Texture s, Texture t, int ds = 0)
+		{
+			return t != null && t.width == s.width >> ds && t.height == t.height >> ds;
 		}
 
 		public static void ReleaseRenderTexture(RenderTexture rt)

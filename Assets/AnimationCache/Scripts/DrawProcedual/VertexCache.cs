@@ -21,6 +21,7 @@ public class VertexCache : MonoBehaviour
 		mat.SetBuffer("_VertexData", data.verticesBuffer);
 		mat.SetBuffer("_NormalsData", data.normalsBuffer);
 		mat.SetFloat("_VCount", data.vertexCount);
+		mat.SetFloat("_TCount", data.indices.Length / 3);
 		mat.SetFloat("_Keyframes", data.keyFrames);
 		mat.SetFloat("_AnimLength", data.animLength);
 	}
