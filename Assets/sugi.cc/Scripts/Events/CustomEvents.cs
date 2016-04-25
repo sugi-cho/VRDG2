@@ -18,4 +18,6 @@ namespace sugi.cc
 	public class ComputeBufferEvent : UnityEvent<ComputeBuffer> { }
 	[System.Serializable]
 	public class PropComuteBufferEvent : UnityEvent<string, ComputeBuffer> { }
+	[System.Serializable]
+	public class MeshEvent : UnityEvent<Mesh> { }
 }

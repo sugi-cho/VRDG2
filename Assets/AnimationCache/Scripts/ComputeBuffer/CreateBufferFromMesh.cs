@@ -12,11 +12,11 @@ public class CreateBufferFromMesh : MonoBehaviour
 
 	public void CreateBuffer(Mesh mesh)
 	{
-		var dataArray = new meshData[0];
+		var dataArray = new VertexData[0];
 		for (var i = 0; i < mesh.subMeshCount; i++)
 		{
 			var indices = mesh.GetIndices(i);
-			var newDataArray = indices.Select(idx => new meshData()
+			var newDataArray = indices.Select(idx => new VertexData()
 			{
 				position = mesh.vertices[idx],
 				normal = mesh.normals[idx],
@@ -41,7 +41,7 @@ public class CreateBufferFromMesh : MonoBehaviour
 		buffer = null;
 	}
 
-	struct meshData
+	struct VertexData
 	{
 		public Vector3 position;
 		public Vector3 normal;

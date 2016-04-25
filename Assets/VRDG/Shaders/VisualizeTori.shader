@@ -7,14 +7,14 @@
 		_Keyframes("keyframeCount",Float) = 0
 		_AnimLength("clip length",Float) = 0
 		_MainTex("Texture", 2D) = "white" {}
-	_Amount("amount", Range(0,1)) = 0
+		_Amount("amount", Range(0,1)) = 0
 		_T("time", Range(0,1)) = 0
 	}
-		CGINCLUDE
-#include "UnityCG.cginc"
-#include "Assets/CGINC/Quaternion.cginc"
+	CGINCLUDE
+	#include "UnityCG.cginc"
+	#include "Assets/CGINC/Quaternion.cginc"
 
-		struct appdata
+	struct appdata
 	{
 		float4 vertex : POSITION;
 		float2 uv : TEXCOORD0;
@@ -101,23 +101,23 @@
 	half4 frag(v2f i) : SV_Target
 	{
 		return half4(i.normal*0.5 + 0.5,1);
-	half diff = 0.5 + dot(i.normal, float3(0,1,0));
-	half4 col = tex2D(_MainTex, i.uv);
-	if (col.a < 0.5)discard;
-	return col * diff;
+		half diff = 0.5 + dot(i.normal, float3(0,1,0));
+		half4 col = tex2D(_MainTex, i.uv);
+		if (col.a < 0.5)discard;
+		return col * diff;
 	}
 		ENDCG
 		SubShader
 	{
 		Tags{ "RenderType" = "Opaque" }
-			LOD 100
+		LOD 100
 
-			Pass
+		Pass
 		{
 			CGPROGRAM
-#pragma vertex vert
-#pragma fragment frag
-#pragma geometry geom
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma geometry geom
 
 			ENDCG
 		}
