@@ -15,7 +15,7 @@ float4 qmul(float4 q1, float4 q2)
 
 //Convert Matrix to Quaternion
 // http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
-float4 matrix_to_quaternion(float4x4 m) {
+float4 matrix_to_quaternion(float3x3 m) {
 
 	float tr = m[0][0] + m[1][1] + m[2][2];
 	float4 q = float4(0, 0, 0, 0);

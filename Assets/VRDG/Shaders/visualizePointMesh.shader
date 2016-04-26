@@ -41,6 +41,7 @@
 				float4 rotation;
 				float crossFade;
 				float wireframe;
+				float life;
 			};
 
 			struct VertexData {
@@ -72,14 +73,6 @@
 						VertexData vData = _VData[idx];
 
 						v2f o = (v2f)0;
-						// o.vertex = half4(0,0,0,1);
-						// o.vertex.z += 1.0;
-						// o.vertex.xyz = rotateAngleAxis(o.vertex.xyz, float3(0,-1,0), i*UNITY_PI*2.0 / 3.0);
-						// o.vertex.xyz = rotateWithQuaternion(o.vertex.xyz, tData.rotation);
-						// o.vertex.xyz *= 0.1;
-						// o.vertex.xyz += tData.position;
-						// o.vertex.x += tidx;
-						// o.vertex.y += num;
 						o.vertex = half4(vData.position,1.0);
 						o.vertex = mul(UNITY_MATRIX_MVP, o.vertex);
 						o.normal = vData.normal;
