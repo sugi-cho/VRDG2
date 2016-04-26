@@ -1,0 +1,25 @@
+﻿#pragma kernel Stretch
+
+#define UNITY_PI 3.14159265359
+#define UNITY_PI2 6.28318530718
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+#include "Assets/mattatz/Common/Shaders/Random.cginc"
+#include "Assets/mattatz/Common/Shaders/Noise/SimplexNoise3D.cginc"
+
+float _Scale, _Intensity, _T;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Stretch (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	// float3 axis = random_positive_orth(id.xy * _Scale) * _Intensity;
+	// p.scale = lerp(float3(1, 1, 1), float3(1, 1, 1) + axis, _T);
+
+	float n = snoise(p.ori * _Scale) * _Intensity;
+	p.scale = lerp(float3(1, 1, 1), n, _T);
+
+	_Particles[id.x] = p;
+}

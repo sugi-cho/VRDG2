@@ -1,0 +1,34 @@
+﻿#pragma kernel Reinstate
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+struct TRS {
+	float3 pos;
+	float4 rot;
+	float3 scale;
+};
+
+float _RT;
+StructuredBuffer<TRS> _From;
+StructuredBuffer<TRS> _To;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Reinstate (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+
+	TRS from = _From[id.x];
+	TRS to = _To[id.x];
+
+	p.pos = lerp(from.pos, to.pos, _RT);
+	p.rot = lerp(from.rot, to.rot, _RT);
+	p.scale = lerp(from.scale, to.scale, _RT);
+	p.lifetime = lerp(p.lifetime, 0.5, _RT);
+	p.gravity = false;
+
+	p.vel *= 0.0;
+	p.acc *= 0.0;
+
+	_Particles[id.x] = p;
+}
+

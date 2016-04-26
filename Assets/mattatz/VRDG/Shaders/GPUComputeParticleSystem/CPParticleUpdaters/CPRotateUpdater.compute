@@ -1,0 +1,14 @@
+﻿#pragma kernel Rotate
+
+#include "../GPUParticle.cginc"
+#include "../GPUParticleComputeCommon.cginc"
+
+float _Speed;
+
+[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
+void Rotate (uint3 id : SV_DispatchThreadID) {
+	Particle p = _Particles[id.x];
+	if(p.gravity) {
+	}
+	_Particles[id.x] = p;
+}
