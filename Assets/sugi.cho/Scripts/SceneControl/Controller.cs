@@ -69,7 +69,7 @@ namespace sugi.cc
 
             InitializeData();
 
-            triUpdaters = new TBufferUpdater[1] { UpdateFall };
+            triUpdaters = new TBufferUpdater[2] { UpdateFall, UpdateStop };
             vertUpdaters = new VBufferUpdater[3] { UpdateToTriangle, UpdateToShape, UpdateToTori };
         }
 

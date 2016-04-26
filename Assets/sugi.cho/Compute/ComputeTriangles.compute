@@ -39,7 +39,7 @@ StructuredBuffer<float3> _ToriNormals;
 StructuredBuffer<VertexData> _ObjData;
 
 uint _NumData;//_ObjectDataのnumIndicesが入ったり、tori.numIndices入ったり。
-uint _ToriFrameCount;
+uint _ToriFrameCount, _ToriVCount;
 
 Texture2D _Tex;
 SamplerState _LinearRepeat;
@@ -69,14 +69,14 @@ VertexData getShape(uint idx) {
 VertexData getTori(uint idx, uint toriId) {
 	idx = idx % _NumData;
 
-	float t = 0;// fmod(toriId, _ToriFrameCont);
+	float t = fmod(_Time.x*20.0 + toriId, _ToriFrameCount);// fmod(_Time.x + (float)toriId, (float)_ToriFrameCont);
 	float f0 = floor(t);
 	float f1 = fmod(f0 + 1.0, _ToriFrameCount);
 	t = frac(t);
 
 	idx = _ToriIndices[idx];
-	float3 pos = lerp(_ToriVertices[idx + _NumData * f0], _ToriVertices[idx + _NumData * f1], t);
-	float3 norm = lerp(_ToriNormals[idx + _NumData * f0], _ToriNormals[idx + _NumData * f1], t);
+	float3 pos = lerp(_ToriVertices[idx + _ToriVCount * f0], _ToriVertices[idx + _ToriVCount * f1], t);
+	float3 norm = lerp(_ToriNormals[idx + _ToriVCount * f0], _ToriNormals[idx + _ToriVCount * f1], t);
 
 	VertexData v;
 	v.position = pos;

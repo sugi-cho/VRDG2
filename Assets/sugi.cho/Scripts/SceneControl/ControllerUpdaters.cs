@@ -28,6 +28,11 @@ namespace sugi.cc
             compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
             compute.Dispatch(kernel, numTriangles / 1024 + 1, 1, 1);
         }
+
+        void UpdateStop()
+        {
+            //do nothing;
+        }
         #endregion
 
         #region VertUpdaters
@@ -70,8 +75,8 @@ namespace sugi.cc
             var targetBuffer = targetVertexBuffers[idx];
 
             compute.SetInt("_NumData", toriData.indices.Length);
+            compute.SetInt("_ToriVCount", toriData.vertexCount);
             compute.SetInt("_ToriFrameCount", toriFrames);
-            Debug.Log(toriFrames);
             compute.SetBuffer(kernel, "_ToriIndices", toriIndicesBuffer);
             compute.SetBuffer(kernel, "_ToriVertices", toriVerticesBuffer);
             compute.SetBuffer(kernel, "_ToriNormals", toriNormalBuffer);
