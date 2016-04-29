@@ -3,10 +3,10 @@
 Shader "Ist/ProceduralModeling/Metaball" {
 
 	Properties {
-		_Cube ("Reflection Map", Cube) = "" {}
+		_Alpha ("Alpha", Range(0, 1)) = 1.0
 		_Color ("Albedo", Color) = (0.75, 0.75, 0.8, 1.0)
+		_Cube ("Reflection Map", Cube) = "" {}
 		_SpecularColor ("Specular", Color) = (0.2, 0.2, 0.2, 1.0)
-
 		_Shininess ("Shininess", Float) = 1.37
 
 		_Clipping ("Clipping", Int) = 2
@@ -86,6 +86,7 @@ Shader "Ist/ProceduralModeling/Metaball" {
 			#pragma multi_compile ___ UNITY_HDR_ON
 			#pragma multi_compile ___ ENABLE_DEPTH_OUTPUT
 
+			float _Alpha;
 			samplerCUBE _Cube;
 			float _Shininess;
 
@@ -121,14 +122,14 @@ Shader "Ist/ProceduralModeling/Metaball" {
 				// float spec = pow(max(0, dot(normalize(lightDir + viewDir), normal)), _Shininess);
 				// col += spec * _SpecularColor;
 
-				// float3 refl = reflect(viewDir, normal);
-				// col *= texCUBE(_Cube, refl);
+				float3 refl = reflect(viewDir, normal);
+				col *= saturate(texCUBE(_Cube, refl) + float4(0.3, 0.3, 0.3, 1.0));
 
 				float4 projected = mul(UNITY_MATRIX_VP, float4(rmd.ray_pos.xyz, 1.0));
 				depth = projected.z / projected.w;
 				clip(depth);
 
-				return col;
+				return col * _Alpha;
 			}
 
 			ENDCG

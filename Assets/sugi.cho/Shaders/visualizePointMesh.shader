@@ -3,6 +3,7 @@
 	Properties
 	{
 		_MainTex("Texture", 2D) = "white" {}
+		_SC("scale", Range(0.0,1.0)) = 1
 	}
 		SubShader
 	{
@@ -32,6 +33,7 @@
 				half3 bary : TEXCOORD2;
 				float wireframe : TEXCOORD3;
 				float4 color :TEXCOORD4;
+				float3 wPos : TEXCOORD5;
 				float4 vertex : SV_POSITION;
 			};
 
@@ -40,8 +42,7 @@
 				float3 velocity;
 				float4 rotation;
 				float crossFade;
-				float wireframe;
-				float life;
+				float2 life;
 			};
 
 			struct VertexData {
@@ -53,6 +54,18 @@
 			float4 _MainTex_ST;
 			StructuredBuffer<TriangleData> _TData;
 			StructuredBuffer<VertexData> _VData;
+			StructuredBuffer<Float> _Dial;
+			StructuredBuffer<Float> _Slider;
+			uniform float3 _WOffset;
+			uniform float _WScale;
+
+			float3 _CamWorld_Pos;
+			float3 _CamWorld_Dir;
+
+			float4 _LightColor;
+			float _LightIntensity;
+
+			float _SC;
 
 			v2f vert(appdata v, uint vid : SV_VertexID)
 			{
@@ -68,32 +81,55 @@
 				for (int num = 0; num < 6; num++) {
 					uint tidx = vid * 6 + num;
 					TriangleData tData = _TData[tidx];
+
+					float3 p0 = _VData[tidx * 3 + 0].position;
+					float3 p1 = _VData[tidx * 3 + 1].position;
+					float3 p2 = _VData[tidx * 3 + 2].position;
+					float3 center = (p0 + p1 + p2) / 3.0;
+
+					float3 normal = normalize(cross(p1 - p0, p2 - p0));
+
 					for (int i = 0; i < 3; i++) {
 						uint idx = tidx * 3 + i;
 						VertexData vData = _VData[idx];
 
 						v2f o = (v2f)0;
-						o.vertex = half4(vData.position,1.0);
-						o.vertex = mul(UNITY_MATRIX_MVP, o.vertex);
 						o.normal = vData.normal;
+						o.wPos = vData.position;
+						o.wPos.xyz = center + saturate(0.4*tData.life.x * distance(tData.life.x, tData.life.y)) * (o.wPos.xyz - center);
+						//o.wPos.xyz = center + _SC*(o.wPos.xyz - center);
+
+						o.wPos *= _WScale;
+						o.wPos += _WOffset;
+
+						o.vertex = mul(UNITY_MATRIX_MVP, half4(o.wPos,1));
 						o.bary = half3(i == 0,i == 1,i == 2);
-						o.wireframe = tData.wireframe;
-						o.color = half4(tData.velocity,1);
+						o.wireframe = 0.5;
+						o.color = tData.life.xyxy;// half4(tData.velocity + 0.01, 0);
 						triStream.Append(o);
 					}
+
 					triStream.RestartStrip();
 				}
 			}
 
 			fixed4 frag(v2f i) : SV_Target
 			{
-				//return half4(i.bary,1);
-				// sample the texture
+				return half4(i.color.xyx,0);
 				half3 d = fwidth(i.bary);
-				half3 a3 = smoothstep(half3(0,0,0), d*1.5, i.bary);
+				half3 a3 = smoothstep(half3(0,0,0), d*1.0, i.bary);
 				half w = 1.0 - min(min(a3.x,a3.y),a3.z);
 
-				return half4(i.normal,1) + w * i.wireframe;
+				half3 bl = normalize(i.wPos - _CamWorld_Pos.xyz);
+				half fr = pow(1+dot(bl, normalize(i.normal)),4.0);
+
+				float3 fl = -_CamWorld_Dir.xyz + float3(0, 0.5, 0);
+				float3 col = dot(fl, i.normal) * _LightColor * _LightIntensity;
+				col = col * (1-_Dial[6]) + fr;
+
+				col += (normalize(i.color.rgb)+0.5)*_Dial[5];
+
+				return half4(col,0.5) + w * i.wireframe * _Dial[7];
 			}
 			ENDCG
 		}

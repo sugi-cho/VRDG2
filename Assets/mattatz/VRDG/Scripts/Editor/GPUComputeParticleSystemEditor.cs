@@ -39,6 +39,9 @@ namespace mattatz {
                     system.updaters[i] = system.updaters[i + 1];
                     system.updaters[i + 1] = tmp;
                     break;
+                } else if(GUILayout.Button("Remove", GUILayout.Width(50), GUILayout.Height(20))) {
+                    system.updaters.RemoveAt(i);
+                    break;
                 }
                 GUILayout.EndHorizontal();
             }

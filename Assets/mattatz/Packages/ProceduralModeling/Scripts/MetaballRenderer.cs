@@ -48,7 +48,7 @@ namespace mattatz {
             if (entities == null) {
                 entities = new MetaballData[limit];
                 buffer = new ComputeBuffer(limit, Marshal.SizeOf(typeof(MetaballData)));
-                material = GetComponent<Renderer>().sharedMaterial;
+                material = GetComponent<Renderer>().material;
             }
         }
 
@@ -71,6 +71,10 @@ namespace mattatz {
             material.SetBuffer("_Entities", buffer);
             material.SetInt("_NumEntities", Mathf.Min(count, limit));
             count = 0;
+        }
+
+        public void OnColor (Color c) {
+            material.SetColor("_Color", c);
         }
 
     }

@@ -27,6 +27,8 @@ namespace mattatz {
 
     [System.Serializable] public class OSCUnitTriggerEvent : UnityEvent<OSCUnit> { }
     [System.Serializable] public class OSCUnitControlEvent : UnityEvent<OSCUnit> { }
+    [System.Serializable] public class OSCCoreColorEvent : UnityEvent<Color> { }
+    [System.Serializable] public class OSCCoreDistanceEvent : UnityEvent<float> { }
 
     public class OSCController : MonoBehaviour {
 
@@ -36,8 +38,12 @@ namespace mattatz {
 
         [SerializeField] int port = 8888;
 
+        [SerializeField] UnityEvent onBegin;
+        [SerializeField] UnityEvent onStart;
         [SerializeField] OSCUnitTriggerEvent onTrigger;
         [SerializeField] OSCUnitControlEvent onControl;
+        [SerializeField] OSCCoreColorEvent onCoreColor;
+        [SerializeField] OSCCoreDistanceEvent onCoreDistance;
 
         Queue queue;
 
@@ -69,15 +75,31 @@ namespace mattatz {
 
         void Receive(OSCMessage msg) {
             var address = msg.Address.Split('/');
-            if (address[1] == "mattatz") {
+            if (address[1] == "core") {
+                if(address[2] == "color") {
+                    float r = float.Parse(msg.Data[0].ToString());
+                    float g = float.Parse(msg.Data[1].ToString());
+                    float b = float.Parse(msg.Data[2].ToString());
+                    onCoreColor.Invoke(new Color(r, g, b));
+                } else if(address[2] == "distance") {
+                    float distance = float.Parse(msg.Data[0].ToString());
+                    onCoreDistance.Invoke(distance);
+                }
+            } else if (address[1] == "mattatz") {
+
+                if(address[2] == "begin") {
+                    onBegin.Invoke();
+                    return;
+                } else if(address[2] == "start") {
+                    onStart.Invoke();
+                    return;
+                }
 
                 int index = int.Parse(msg.Data[0].ToString());
                 if (!units.ContainsKey(index)) {
                     units[index] = new OSCUnit(index, _ButtonCount, _SliderCount);
                 }
-
                 var unit = units[index];
-
                 if(address[2] == "trigger") {
                     for(int i = 0; i < _ButtonCount; i++) {
                         unit.buttons[i] = int.Parse(msg.Data[i + 1].ToString()) == 1;
@@ -89,8 +111,8 @@ namespace mattatz {
                     }
                     onControl.Invoke(unit);
                 }
-
             }
+
         }
 
         void OnPacketReceived(OSCServer server, OSCPacket packet) {

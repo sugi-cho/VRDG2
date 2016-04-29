@@ -17,20 +17,20 @@ namespace mattatz {
         MetaballRenderer.MetaballData data;
 
         Vector3 axis;
+        public float axisScale = 5f;
 
         public float speedScale = 1f;
         public float speed = 0.5f;
-        float distance = -1f;
         public float deceleration = 0.99f;
 
+        float distance = -1f;
         float originRadius;
-
         float acceleration;
         float velocity;
 
         void Start () {
             axis = Random.insideUnitSphere.normalized;
-            distance = (transform.parent.localPosition - transform.localPosition).magnitude;
+            distance = (transform.parent.position - transform.position).magnitude;
             speed *= Random.Range(0.5f, 1.2f);
             originRadius = radius;
         }
@@ -48,11 +48,9 @@ namespace mattatz {
         public void SetDistance (float scale) {
             if (distance < 0f) return;
 
-            /*
             var len = distance * scale;
-            var dir = (transform.localPosition - transform.parent.localPosition);
-            transform.localPosition = dir.normalized * len;
-            */
+            var dir = (transform.position - transform.parent.position);
+            transform.position = dir.normalized * len + transform.parent.position;
         }
 
         public void SetRadius (float scale) {
@@ -61,7 +59,7 @@ namespace mattatz {
 
         public void AddForce (float acc) {
             acceleration += acc / (radius * 3f);
-            axis = Quaternion.AngleAxis(Random.value - 0.5f, Vector3.up) * Quaternion.AngleAxis(Random.value - 0.5f, Vector3.right) * Quaternion.AngleAxis(Random.value - 0.5f, Vector3.forward) * axis;
+            axis = Quaternion.AngleAxis((Random.value - 0.5f) * axisScale, Vector3.up) * Quaternion.AngleAxis((Random.value - 0.5f) * axisScale, Vector3.right) * Quaternion.AngleAxis((Random.value - 0.5f) * axisScale, Vector3.forward) * axis;
         }
 
         void FixedUpdate() {
@@ -76,9 +74,11 @@ namespace mattatz {
 
         void OnDrawGizmos() {
             if (!enabled) return;
-            Transform t = GetComponent<Transform>();
             Gizmos.color = Color.blue;
-            Gizmos.DrawWireSphere(t.position, radius);
+            Gizmos.DrawWireSphere(transform.position, radius);
+
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(transform.position, transform.parent.position);
         }
     }
 

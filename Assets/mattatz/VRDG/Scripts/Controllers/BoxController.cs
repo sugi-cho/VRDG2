@@ -5,14 +5,40 @@ using System.Collections.Generic;
 
 using UnityOSC;
 
+using mattatz.Utils;
+
 namespace mattatz {
 
     public class BoxController : MonoBehaviour {
 
+        [SerializeField] MetaballRenderer rnd;
+        Material metaballMat;
+
+        [SerializeField] float duration = 3f;
         [SerializeField] GPUComputeParticleSystem system;
-        // [SerializeField] List<CPParticleUpdaterControl> controls;
+
+        [SerializeField] Color lightColor = Color.white;
+        [SerializeField, Range(0f, 1f)] float lightIntensity = 0.5f;
+
+        bool started = false;
 
         void Start () {
+            metaballMat = rnd.GetComponent<MeshRenderer>().material;
+            metaballMat.SetFloat("_Alpha", 0f);
+        }
+
+        void Update() {
+            // Shader.SetGlobalColor("_LightColor", lightColor);
+            // Shader.SetGlobalFloat("_LightIntensity", lightIntensity);
+        }
+
+        public void Begin () {
+            if (started) return;
+            started = true;
+
+            StartCoroutine(Easing.Ease(duration, Easing.Quadratic.Out, (float t) => {
+                metaballMat.SetFloat("_Alpha", t);
+            }, 0f, 1f));
         }
 
         public void OnTrigger (OSCUnit unit) {

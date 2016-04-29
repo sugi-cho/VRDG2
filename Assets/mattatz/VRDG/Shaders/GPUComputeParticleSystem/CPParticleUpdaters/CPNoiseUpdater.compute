@@ -13,12 +13,21 @@ float _Scale;
 float _Intensity;
 float _Time;
 
+// divergence-free noise vector field
+float3 dfnoise_field(float3 p, float k) {
+	p += float3(0.9, 1.0, 1.1) * k;
+	float3 n1 = snoise_grad(p);
+	float3 n2 = snoise_grad(p + float3(15.3, 13.1, 17.4));
+	return cross(n1, n2);
+}
+
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
 void Noise (uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 
 	if(p.gravity) {
-		p.acc += snoise_grad((p.pos + float3(0, _Time, 0)) * _Scale) * _Intensity;
+		// p.acc += snoise_grad((p.pos + float3(0, _Time, 0)) * _Scale) * _Intensity;
+		p.acc += dfnoise_field(p.pos, 1.0) * _Intensity;
 	}
 
 	_Particles[id.x] = p;

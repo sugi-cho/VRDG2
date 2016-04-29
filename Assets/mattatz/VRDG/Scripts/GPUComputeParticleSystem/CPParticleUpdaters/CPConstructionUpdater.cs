@@ -13,7 +13,7 @@ namespace mattatz {
 
     public class CPConstructionUpdater : CPParticleUpdater {
 
-        public float radius = 5f;
+        public float radius = 10f;
         public float duration = 3f;
 
         [SerializeField, Range(0f, 1f)] float t = 0f;
@@ -38,11 +38,17 @@ namespace mattatz {
             StartCoroutine(Easing.Ease(duration, Easing.Quadratic.Out, (float tt) => {
             // StartCoroutine(Easing.Ease(duration, Easing.Linear, (float tt) => {
                 this.t = tt;
-            }, 0f, 1f));
+            }, 0f, 1f, () => {
+                StartCoroutine(Delay(1f));
+            }));
+        }
+
+        IEnumerator Delay (float delay) {
+            yield return new WaitForSeconds(delay);
+            gameObject.SetActive(false);
         }
 
         public override void Dispatch(GPUComputeParticleSystem system) {
-
             if(boundsBuffer == null) {
                 Setup(system);
             }
@@ -154,6 +160,10 @@ namespace mattatz {
             Dispatch(kernel, system);
 
             shader.SetBuffer(0, "_BoundsReferences", boundsReferencesBuffer);
+        }
+
+        public void OnStart () {
+            Animate();
         }
 
     }

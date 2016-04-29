@@ -6,7 +6,6 @@
 #include "../GPUParticle.cginc"
 #include "../GPUParticleComputeCommon.cginc"
 
-
 #include "Assets/mattatz/Common/Shaders/Random.cginc"
 #include "Assets/mattatz/Common/Shaders/Easing.cginc"
 
@@ -24,19 +23,18 @@ float _Scale;
 RWStructuredBuffer<State> _States;
 
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
-void Lattice(uint3 id : SV_DispatchThreadID) {
+void Lattice (uint3 id : SV_DispatchThreadID) {
 	State state = _States[id.x];
 
-	if (state.flag) {
+	if(state.flag) {
 		Particle p = _Particles[id.x];
 		float t = saturate(state.time);
 		t = ease_out_expo(t);
 		p.pos = lerp(state.from, state.to, t);
 
-		if (state.time <= 1) {
+		if(state.time <= 1) {
 			state.time += _DT * p.mass;
-		}
-		else {
+		} else {
 			float3 dir = random_orth((float2(id.x * 0.01, state.time) + state.from.xz + state.to.xy)) * _Step * _Scale;
 
 			state.from = p.pos;

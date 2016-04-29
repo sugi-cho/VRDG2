@@ -32,6 +32,7 @@ namespace mattatz {
                 var go = Instantiate(prefab);
                 go.transform.parent = transform;
                 go.transform.localPosition = Random.insideUnitSphere * Random.Range(mRadiusRange.x, mRadiusRange.y);
+                // go.transform.localScale = Vector3.one;
                 var entity = go.GetComponent<MetaballEntity>();
                 entity.radius = Random.Range(mScaleRange.x, mScaleRange.y);
                 entity.m_renderer = mRenderer;
@@ -47,7 +48,7 @@ namespace mattatz {
             for(int i = 0, n = entities.Count; i < n; i++) {
                 var entity = entities[i];
                 float noise = Mathf.Lerp(0.9f, 1.1f, Mathf.PerlinNoise(i + Time.timeSinceLevelLoad, 0f));
-                entity.SetDistance(Mathf.Max(distance, 0.01f));
+                entity.SetDistance(Mathf.Max(distance, float.Epsilon));
                 entity.SetRadius(radius * noise);
             }
 
@@ -68,6 +69,10 @@ namespace mattatz {
             entities.ForEach(planet => {
                 planet.AddForce(speed);
             });
+        }
+
+        public void OnDistance (float d) {
+            distance = d;
         }
 
     }

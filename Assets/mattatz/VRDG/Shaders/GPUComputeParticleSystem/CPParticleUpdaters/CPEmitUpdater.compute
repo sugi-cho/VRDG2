@@ -18,7 +18,9 @@ Particle init(Particle p) {
 	p.lifetime = 0;
 
 	float3 hsize = _EmissionSize * 0.5;
+
 	p.pos = _EmissionCenter + _EmissionSize * float3(nrand(p.ori.xy, _Seed.x), nrand(p.ori.yz, _Seed.y), nrand(p.ori.xz, _Seed.z)) - hsize;
+
 	p.rot = rotate_angle_axis(nrand(p.ori.yz + _Seed.z), random_point_on_sphere(p.ori.xy + _Seed.xy));
 
 	return p;
@@ -28,7 +30,6 @@ Particle init(Particle p) {
 void Emit (uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 
-	// p.acc += normalize(p.pos);
 	p.acc += _Force;
 	p.lifetime += (p.mass * _DT);
 	p.gravity = true;

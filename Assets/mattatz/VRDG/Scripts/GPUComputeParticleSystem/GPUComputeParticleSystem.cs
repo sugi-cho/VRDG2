@@ -39,8 +39,6 @@ namespace mattatz {
 
         public ComputeBuffer ParticleBuffer { get { return buffer; } }
         public List<CPParticleUpdater> updaters;
-        public CPParticleUpdaterControl control;
-        CPParticleUpdaterControl prev;
 
         [SerializeField] Transform core;
         [SerializeField] Color color = Color.white;
@@ -55,7 +53,6 @@ namespace mattatz {
 
         const int _Thread = 8;
         const string
-            _NoiseDispatchKey = "Noise",
             _ApplyForceDispatchKey = "ApplyForce",
             _UpdateDispatchKey = "Update";
 
@@ -81,22 +78,14 @@ namespace mattatz {
             }
 
             particleDisplayMat.SetFloat("_Size", scale);
+            // particleDisplayMat.SetColor("_LightColor", Color.white);
+            // particleDisplayMat.SetFloat("_LightIntensity", 1f);
 
             mesh = Build(sideCount);
         }
 
         void Update() {
             CheckInit();
-
-            /*
-            if(control != null) {
-                if(control != prev) {
-                    control.Init(this);
-                }
-                control.Dispatch(this);
-                prev = control;
-            }
-            */
 
             updaters.ForEach(updater => {
                 if(updater.gameObject.activeSelf) {

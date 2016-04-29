@@ -19,11 +19,45 @@ float3 rotate_vector(float3 v, float4 r) {
 	return qmul(r, qmul(float4(v, 0), r_c)).xyz;
 }
 
-// A given angle of rotation about a given aixs
+// A given angle of rotation about a given axis
 float4 rotate_angle_axis(float angle, float3 axis) {
 	float sn = sin(angle * 0.5);
 	float cs = cos(angle * 0.5);
 	return float4(axis * sn, cs);
+}
+
+float4 q_conj(float4 q) {
+	return float4(-q.x, -q.y, -q.z, q.w);
+}
+
+float4x4 look_at_matrix(float3 at, float3 eye, float3 up) {
+	float3 zaxis = normalize(at - eye);
+	float3 xaxis = normalize(cross(up, zaxis));
+	float3 yaxis = cross(zaxis, xaxis);
+	float dx = -dot(xaxis, eye);
+	float dy = -dot(yaxis, eye);
+	float dz = -dot(zaxis, eye);
+	return float4x4(
+		xaxis.x, yaxis.x, zaxis.x, 0,
+		xaxis.y, yaxis.y, zaxis.y, 0,
+		xaxis.z, yaxis.z, zaxis.z, 0,
+		// dx, dy, dz, 1
+		0, 0, 0, 1
+	);
+}
+
+// http://stackoverflow.com/questions/349050/calculating-a-lookat-matrix
+float4x4 look_at_matrix(float3 forward, float3 up) {
+	float3 xaxis = cross(forward, up);
+	float3 yaxis = up;
+	float3 zaxis = forward;
+	return float4x4(
+		xaxis.x, yaxis.x, zaxis.x, 0,
+		xaxis.y, yaxis.y, zaxis.y, 0,
+		xaxis.z, yaxis.z, zaxis.z, 0,
+		0, 0, 0, 1
+		// -dot(xaxis, eye), -dot(yaxis, eye), -dot(zaxis, eye), 1
+	);
 }
 
 // http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/

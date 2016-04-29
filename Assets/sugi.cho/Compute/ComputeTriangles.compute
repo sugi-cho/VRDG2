@@ -1,11 +1,30 @@
 ﻿#pragma kernel InitializeTriangles
-#pragma kernel InitializeVertices
 #pragma kernel LerpVertex
 #pragma kernel SetTDataFromVData
-#pragma kernel GoFall
+
+#pragma kernel PositionToFloor
+#pragma kernel PositionToCube
+#pragma kernel PositionToSphere
+#pragma kernel PositionToTarget
+
+#pragma kernel Stop
+#pragma kernel GotoPos
+#pragma kernel GoUp
+#pragma kernel GoTarget
+#pragma kernel LifeSpan
+
 #pragma kernel ToTriangle
 #pragma kernel ToShape
 #pragma kernel ToTori
+
+#define _Amount _Dial[0][0]
+#define _Life _Dial[0][3]*_Time.z+5.0
+
+#define _Speed (0.1+1.0*_Slider[1][0])
+#define _Crossfade _Slider[0][3]
+
+#define time _Time.x
+#define dt _Time.y;
 
 #include "Assets/CGINC/Random.cginc"
 #include "Assets/CGINC/Transform.cginc"
@@ -17,8 +36,7 @@ struct TriangleData {
 	float3 velocity;
 	float4 rotation;
 	float crossfade;
-	float wireframe;
-	float life;
+	float2 life;
 };
 
 struct VertexData {
@@ -38,38 +56,78 @@ StructuredBuffer<float3> _ToriNormals;
 
 StructuredBuffer<VertexData> _ObjData;
 
+RWStructuredBuffer<float3> _Positions;
+
 uint _NumData;//_ObjectDataのnumIndicesが入ったり、tori.numIndices入ったり。
 uint _ToriFrameCount, _ToriVCount;
 
 Texture2D _Tex;
 SamplerState _LinearRepeat;
 float4 _Time;//(time,dt,life,lifetime)
+float3 _TargetPos, _CamWorld_Pos, _CamWorld_Dir;
+float4 _Dial[2];
+float4 _Slider[2];
+float _TriSize, _ObjSize, _ToriSize;
+
+float3 FloorPos(uint id) {
+	float t = sqrt((float)id / (float)_NumData)*50.0;
+	return float3(sin(t * 30.0), 0, cos(t * 30.0)) * t*3.0;
+}
+float3 CubePos(uint id) {
+	float t = (float)id / (float)_NumData;
+	float size = pow(_NumData, 1.0 / 3.0);
+	float z = id % size;
+	float y = (id / size) / size;
+	float x = (id / size) % size;
+	float3 pos = float3(x, y, z) / (float)size - 0.5;
+	return pos;
+}
+float3 SpherePos(uint id) {
+	float3 pos = CubePos(id);
+	return normalize(pos) * max(abs(pos.x), max(abs(pos.y), abs(pos.z)));
+}
+float3 TargetPos(uint id) {
+	float t = (float)id / (float)_NumData;
+	TriangleData td = _TData[id];
+	float3 pos = td.position;
+	float3 target = lerp(_TargetPos, pos, t * 0.8);
+	float3 forward = normalize(rotateWithQuaternion(float3(0, 0, 1), td.rotation));
+
+	float3 up = float3(0.0, 1.0, 0.0);
+	float3 right = float3(1.0, 0.0, 0.0);
+
+	target = target + (up * sin(time*0.1 + id * 0.001) + right * cos(time*0.1 + id * 0.001));
+	return target;
+}
 
 VertexData getTriangle(uint idx) {
-	idx = idx % 3;
+	uint i = idx % 3;
 	float3 pos = float3(0.0, 0.0, 1.0);
 	float3 normal = float3(0.0, 1.0, 0.0);
 
-	pos = rotateAngleAxis(pos, float3(0.0, -1.0, 0.0), (float)idx*PI*2.0 / 3.0);
+	pos = rotateAngleAxis(pos, float3(0.0, -1.0, 0.0), (float)i*PI*2.0 / 3.0);
+
+	pos = rotateAngleAxis(pos, float3(0.0, 0.0, 1.0), time + (idx / 3));
+	normal = rotateAngleAxis(normal, float3(0.0, 0.0, 1.0), time + (idx / 3));
 
 	VertexData v;
-	v.position = pos;
+	v.position = pos*_TriSize;
 	v.normal = normal;
 
 	return v;
 }
-
 VertexData getShape(uint idx) {
-	idx = idx % _NumData;
-	VertexData v = _ObjData[idx];
-
+	uint i = idx % _NumData;
+	VertexData v = _ObjData[i];
+	v.position *= _ObjSize;
+	v.position = rotateAngleAxis(v.position, float3(0.0, 0.0, 1.0), time + (idx / _NumData));
+	v.normal = rotateAngleAxis(v.normal, float3(0.0, 0.0, 1.0), time + (idx / _NumData));
 	return v;
 }
-
 VertexData getTori(uint idx, uint toriId) {
 	idx = idx % _NumData;
 
-	float t = fmod(_Time.x*20.0 + toriId, _ToriFrameCount);// fmod(_Time.x + (float)toriId, (float)_ToriFrameCont);
+	float t = fmod(time*(30.0) + toriId, _ToriFrameCount);
 	float f0 = floor(t);
 	float f1 = fmod(f0 + 1.0, _ToriFrameCount);
 	t = frac(t);
@@ -79,7 +137,7 @@ VertexData getTori(uint idx, uint toriId) {
 	float3 norm = lerp(_ToriNormals[idx + _ToriVCount * f0], _ToriNormals[idx + _ToriVCount * f1], t);
 
 	VertexData v;
-	v.position = pos;
+	v.position = pos*_ToriSize;
 	v.normal = norm;
 
 	return v;
@@ -88,29 +146,14 @@ VertexData getTori(uint idx, uint toriId) {
 [numthreads(1024, 1, 1)]
 void InitializeTriangles(uint id : SV_DispatchThreadID)
 {
-	TriangleData tData;
-	tData.position = float3(sin(id*0.01), (float)id / _NumData, cos(id*0.01)) * 10 * id / _NumData;
-	tData.velocity = 0.0;
-	tData.rotation = getRandomRotation(tData.position.xy);
-	tData.crossfade = 0.0;
-	tData.wireframe = 0.5;
-	tData.life = 1.0;
-	_TData[id] = tData;
+	TriangleData td;
+	td.position = FloorPos(id);
+	td.velocity = 0;
+	td.rotation = float4(0, 0, 0, 1);
+	td.crossfade = 0.0;
+	td.life = 0;
+	_TData[id] = td;
 }
-
-[numthreads(1024, 1, 1)]
-void InitializeVertices(uint id : SV_DispatchThreadID) {
-	uint idx = id.x;
-	VertexData v = getTriangle(idx);
-	TriangleData t = _TData[idx / 3];
-
-	v.position = rotateWithQuaternion(v.position, t.rotation);
-	v.position += t.position;
-	v.normal = rotateWithQuaternion(v.normal, t.rotation);
-
-	_OutVData[idx] = v;
-}
-
 [numthreads(1024, 1, 1)]
 void LerpVertex(uint id : SV_DispatchThreadID) {
 	uint tid = id / 3;
@@ -123,19 +166,6 @@ void LerpVertex(uint id : SV_DispatchThreadID) {
 	v.normal = lerp(v0.normal, v1.normal, t.crossfade);
 	_OutVData[id] = v;
 }
-
-[numthreads(1024, 1, 1)]
-void SetVDataFromTData(uint id : SV_DispatchThreadID) {
-	VertexData v = getTriangle(id);
-	TriangleData t = _TData[id / 3];
-
-	v.position = rotateWithQuaternion(v.position, t.rotation);
-	v.position += t.position;
-	v.normal = rotateWithQuaternion(v.normal, t.rotation);
-
-	_OutVData[id] = v;
-}
-
 [numthreads(1024, 1, 1)]
 void SetTDataFromVData(uint id : SV_DispatchThreadID) {
 	uint vid0 = id * 3;
@@ -156,36 +186,136 @@ void SetTDataFromVData(uint id : SV_DispatchThreadID) {
 	float3x3 rotMatrix = getRotateMatrix(right, up, forward);
 	float4 rotation = matrix_to_quaternion(rotMatrix);
 
-	TriangleData t = _TData[id];
-	t.position = center;
-	t.rotation = rotation;
-	_TData[id] = t;
+	TriangleData td = _TData[id];
+	td.position = center;
+	td.rotation = rotation;
+	_TData[id] = td;
 }
 
+//PositionUpdater///
+[numthreads(1024, 1, 1)]
+void PositionToFloor(uint id : SV_DispatchThreadID) {
+	_Positions[id] = FloorPos(id);
+}
+[numthreads(1024, 1, 1)]
+void PositionToCube(uint id : SV_DispatchThreadID) {
+	float3 pos = CubePos(id);
+	pos = rotateAngleAxis(pos, float3(0.0, 1.0, 0.2), time);
+	pos *= 7.5;
+	pos.y += 10.0;
+	_Positions[id] = pos;
+}
+[numthreads(1024, 1, 1)]
+void PositionToSphere(uint id : SV_DispatchThreadID) {
+	float3 pos = SpherePos(id);
+	pos = rotateAngleAxis(pos, float3(0.0, 1.0, 0.2), time);
+	pos *= 7.5;
+	pos.y += 10.0;
+	_Positions[id] = pos;
+}
+[numthreads(1024, 1, 1)]
+void PositionToTarget(uint id : SV_DispatchThreadID) {
+	float3 pos = TargetPos(id);
+	_Positions[id] = pos;
+}
 
 //TriangleUpdater///
 [numthreads(1024, 1, 1)]
-void GoFall(uint id : SV_DispatchThreadID) {
-	TriangleData t = _TData[id];
+void Stop(uint id : SV_DispatchThreadID) {
+	TriangleData td = _TData[id];
+	_TData[id] = td;
+}
+[numthreads(1024, 1, 1)]
+void GotoPos(uint id : SV_DispatchThreadID) {
+	TriangleData td = _TData[id];
+	float3 pos = td.position;
+	float3 vel = td.velocity;
+	float4 rot = td.rotation;
+	float3 targetPos = _Positions[id];// _TData[id].position = targetPos; return;
 
-	float3 pos = t.position;
-	float3 vel = t.velocity;
-	float4 rot = t.rotation;
 
-	vel.y -= _Time.y;
+	float3 toVec = targetPos - pos;
+	if (length(toVec) != 0)
+		toVec = normalize(toVec);
+	else
+		toVec = normalize(pos + 0.01);
+	float3 forward = normalize(rotateWithQuaternion(float3(0, 0, 1), rot));
+	float4 toRot = matrix_to_quaternion(getLookRotationMatrix(toVec, float3(0, 1, 0) + toVec - forward));
+
+	rot = lerp(rot, normalize(toRot), saturate(_Time.y*10.0));
+	rot = normalize(rot);
+	vel = normalize(rotateWithQuaternion(float3(0.0, 0.0, 1.0), rot)) * _Speed * (20.0 + 20.0*frac((float)id*0.01));
+	pos += vel * dt;
+
+	td.position = pos;
+	td.velocity = vel;
+	td.rotation = rot;
+	_TData[id] = td;
+}
+[numthreads(1024, 1, 1)]
+void GoUp(uint id : SV_DispatchThreadID) {
+	//float trianglRate = 
+	TriangleData td = _TData[id];
+
+	float3 pos = td.position;
+	float3 vel = td.velocity;
+	float4 rot = td.rotation;
+
+	vel.y += _Time.y;
 	vel *= exp(-_Time.y);
 	pos += vel * _Time.y;
-	if (pos.y < 0.0)
-		pos.y = 10.0;
 
-	t.velocity = vel;
-	t.position = pos;
-	t.rotation = rot;
-	_TData[id] = t;
+	td.velocity = vel;
+	td.position = pos;
+	td.rotation = rot;
+	_TData[id] = td;
+}
+[numthreads(1024, 1, 1)]
+void GoTarget(uint id : SV_DispatchThreadID) {
+	TriangleData td = _TData[id];
+
+	float t = _Time.x;
+
+	float3 pos = td.position;
+	float3 vel = td.velocity;
+	float4 rot = td.rotation;
+	float3 target = _TargetPos;
+	float3 forward = normalize(rotateWithQuaternion(float3(0, 0, 1), rot));
+
+	float3 toVec = target - pos;
+	float3 up = float3(0.0, 1.0, 0.0);
+	float3 right = normalize(cross(up, toVec));
+
+	target = target + (up * sin(t + id * 0.01) + right * cos(t + id * 0.013)) * (5.0*sin(time *0.1) + frac((float)id*0.01) * 10.0);
+	toVec = normalize(target - pos);
+	float4 toRot = matrix_to_quaternion(getLookRotationMatrix(toVec, up + toVec - forward));
+	rot = lerp(rot, normalize(toRot), saturate(_Time.y*10.0));
+	rot = normalize(rot);
+	vel = normalize(rotateWithQuaternion(float3(0.0, 0.0, 1.0), rot)) * _Speed * (20.0 + 20.0*frac((float)id*0.01));
+	pos += vel * dt;
+
+	td.position = pos;
+	td.velocity = vel;
+	td.rotation = rot;
+	_TData[id] = td;
+}
+
+[numthreads(1024, 1, 1)]
+void LifeSpan(uint id : SV_DispatchThreadID) {
+	TriangleData td = _TData[id];
+	float2 life = td.life;
+	life.x -= dt;
+
+	if (life.x < 0)
+		life = _Life * (1.0 + frac(id*0.001)) * saturate(_Amount > (float)id / (float)_NumData);
+
+	td.life = life;
+	td.crossfade += ((_Crossfade > (float)id / (float)_NumData) - 0.5)*0.4*dt;
+	td.crossfade = saturate(td.crossfade);
+	_TData[id] = td;
 }
 
 //VertexUpdater///
-
 [numthreads(1024, 1, 1)]
 void ToTriangle(uint id : SV_DispatchThreadID) {
 	VertexData v0 = _VData0[id];
@@ -201,10 +331,9 @@ void ToTriangle(uint id : SV_DispatchThreadID) {
 
 	_OutVData[id] = v;
 }
-
 [numthreads(1024, 1, 1)]
 void ToShape(uint id : SV_DispatchThreadID) {
-	uint tidx = (id / _NumData)*_NumData;
+	uint tidx = (id / _NumData)*_NumData / 3;
 	VertexData v0 = _VData0[id];
 	VertexData v = getShape(id);
 	TriangleData t = _TData[tidx];
@@ -218,10 +347,9 @@ void ToShape(uint id : SV_DispatchThreadID) {
 
 	_OutVData[id] = v;
 }
-
 [numthreads(1024, 1, 1)]
 void ToTori(uint id : SV_DispatchThreadID) {
-	uint tidx = (id / _NumData)*_NumData;
+	uint tidx = (id / _NumData)*_NumData / 3;
 	VertexData v0 = _VData0[id];
 	VertexData v = getTori(id, id / _NumData);
 	TriangleData t = _TData[tidx];

@@ -47,45 +47,9 @@ StructuredBuffer<Particle> _Particles;
 float3 _Core;
 
 float4x4 _ModelMatrix;
+float2 _CameraDistance;
 float2 _ClipDistance;
-float2 _ScaleDistance;
-
-// Computes world space light direction
-float3 world_space_light_dir(float4 v) {
-	float3 worldPos = mul(_Object2World, v).xyz;
-	// float3 worldPos = mul(_ModelMatrix, v).xyz;
-#ifndef USING_LIGHT_MULTI_COMPILE
-	return _WorldSpaceLightPos0.xyz - worldPos * _WorldSpaceLightPos0.w;
-#else
-#ifndef USING_DIRECTIONAL_LIGHT
-	return _WorldSpaceLightPos0.xyz - worldPos;
-#else
-	return _WorldSpaceLightPos0.xyz;
-#endif
-#endif
-}
-
-// Computes world space view direction
-float3 world_space_view_dir(in float4 v) {
-	return _WorldSpaceCameraPos.xyz - mul(_Object2World, v).xyz;
-	// return _WorldSpaceCameraPos.xyz - mul(_ModelMatrix, v).xyz;
-}
-
-float3 point_lighting(float3 wpos, float3 normal) {
-	float3 lighting = float3(0.0, 0.0, 0.0);
-
-	// #ifdef VERTEXLIGHT_ON
-	for (int index = 0; index < 4; index++) {
-		float3 lightPos = float3(unity_4LightPosX0[index], unity_4LightPosY0[index], unity_4LightPosZ0[index]);
-		float3 lightDir = normalize(lightPos - wpos);
-		float sd = dot(lightDir, lightDir);
-		float atten = 1.0 / (1.0 + unity_4LightAtten0[index] * sd);
-		lighting += atten * unity_LightColor[index].rgb * max(0.0, dot(normal, lightDir));
-	}
-	// #endif
-
-	return lighting;
-}
+float2 _CoreDistance;
 
 v2g vert(appdata IN, uint id : SV_VertexID) {
 	v2g OUT;
@@ -101,11 +65,12 @@ v2g vert(appdata IN, uint id : SV_VertexID) {
 	float lifetime = saturate(p.lifetime);
 
 	float3 world = mul(_Object2World, OUT.vertex).xyz;
-	float4 mvp = mul(UNITY_MATRIX_MVP, OUT.vertex);
+	float4 mvp = mul(UNITY_MATRIX_VP, world);
 	// float2 normalizedXY = (mvp.xy / mvp.w); // 0.0 ~ 1.0
 	// float xy = smoothstep(1.0, 0.9, length(normalizedXY));
 	float depth = smoothstep(_ClipDistance.x, _ClipDistance.y, pow(mvp.z / mvp.w, 1.0)); // for Camera moving
-	float scale = smoothstep(_ScaleDistance.x, _ScaleDistance.y, length(_Core - world));  // for Core object appearance.
+	// float depth = smoothstep(_ClipDistance.x, _ClipDistance.y, length(_WorldSpaceCameraPos - world)); // for Camera moving
+	float scale = smoothstep(_CoreDistance.x, _CoreDistance.y, length(_Core - world));  // for Core object appearance.
 	float s = depth * scale;
 
 	OUT.size = s * _Size * p.scale * smoothstep(0.0, 0.1, lifetime) * (1.0 - smoothstep(0.9, 1.0, lifetime));
@@ -119,9 +84,6 @@ void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
 
 	pIn.pos = mul(vp, p[0]);
 	pIn.wpos = mul(_Object2World, p[0]);
-	// pIn.lightDir = world_space_light_dir(p[0]);
-	// pIn.viewDir = world_space_view_dir(p[0]);
-
 	pIn.lightDir = ObjSpaceLightDir(p[0]);
 	pIn.viewDir = ObjSpaceViewDir(p[0]);
 
@@ -139,10 +101,6 @@ void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
 
 	pIn.pos = mul(vp, p[1]);
 	pIn.wpos = mul(_Object2World, p[1]);
-
-	// pIn.lightDir = world_space_light_dir(p[1]);
-	// pIn.viewDir = world_space_view_dir(p[1]);
-
 	pIn.lightDir = ObjSpaceLightDir(p[1]);
 	pIn.viewDir = ObjSpaceViewDir(p[1]);
 
@@ -160,8 +118,6 @@ void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
 
 	pIn.pos = mul(vp, p[2]);
 	pIn.wpos = mul(_Object2World, p[2]);
-	// pIn.lightDir = world_space_light_dir(p[2]);
-	// pIn.viewDir = world_space_view_dir(p[2]);
 	pIn.lightDir = ObjSpaceLightDir(p[2]);
 	pIn.viewDir = ObjSpaceViewDir(p[2]);
 	pIn.uv = float2(0.0f, 0.0f);
@@ -178,8 +134,6 @@ void add_face(v2g v, in g2f pIn, inout TriangleStream<g2f> OUT, float4 p[4]) {
 
 	pIn.pos = mul(vp, p[3]);
 	pIn.wpos = mul(_Object2World, p[3]);
-	// pIn.lightDir = world_space_light_dir(p[3]);
-	// pIn.viewDir = world_space_view_dir(p[3]);
 	pIn.lightDir = ObjSpaceLightDir(p[3]);
 	pIn.viewDir = ObjSpaceViewDir(p[3]);
 	pIn.uv = float2(0.0f, 1.0f);
@@ -211,6 +165,8 @@ void geom_cube(point v2g IN[1], inout TriangleStream<g2f> OUT) {
 	float4 v[4];
 
 	g2f pIn;
+	UNITY_INITIALIZE_OUTPUT(g2f, pIn);
+
 	pIn.col = IN[0].col;
 
 	// forward
@@ -218,7 +174,8 @@ void geom_cube(point v2g IN[1], inout TriangleStream<g2f> OUT) {
 	v[1] = float4(pos + forward + right + up, 1.0f);
 	v[2] = float4(pos + forward - right - up, 1.0f);
 	v[3] = float4(pos + forward - right + up, 1.0f);
-	pIn.normal = normalize(forward);
+	// pIn.normal = normalize(forward);
+	pIn.normal = UnityObjectToWorldNormal(forward);
 	add_face(IN[0], pIn, OUT, v);
 
 	// back
@@ -226,7 +183,8 @@ void geom_cube(point v2g IN[1], inout TriangleStream<g2f> OUT) {
 	v[1] = float4(pos - forward - right + up, 1.0f);
 	v[2] = float4(pos - forward + right - up, 1.0f);
 	v[3] = float4(pos - forward + right + up, 1.0f);
-	pIn.normal = -normalize(forward);
+	// pIn.normal = -normalize(forward);
+	pIn.normal = UnityObjectToWorldNormal(-forward);
 	add_face(IN[0], pIn, OUT, v);
 
 	// up
@@ -234,7 +192,8 @@ void geom_cube(point v2g IN[1], inout TriangleStream<g2f> OUT) {
 	v[1] = float4(pos - forward - right + up, 1.0f);
 	v[2] = float4(pos + forward + right + up, 1.0f);
 	v[3] = float4(pos + forward - right + up, 1.0f);
-	pIn.normal = normalize(up);
+	// pIn.normal = normalize(up);
+	pIn.normal = UnityObjectToWorldNormal(up);
 	add_face(IN[0], pIn, OUT, v);
 
 	// down
@@ -242,7 +201,8 @@ void geom_cube(point v2g IN[1], inout TriangleStream<g2f> OUT) {
 	v[1] = float4(pos + forward - right - up, 1.0f);
 	v[2] = float4(pos - forward + right - up, 1.0f);
 	v[3] = float4(pos - forward - right - up, 1.0f);
-	pIn.normal = -normalize(up);
+	// pIn.normal = -normalize(up);
+	pIn.normal = UnityObjectToWorldNormal(-up);
 	add_face(IN[0], pIn, OUT, v);
 
 	// left
@@ -250,7 +210,8 @@ void geom_cube(point v2g IN[1], inout TriangleStream<g2f> OUT) {
 	v[1] = float4(pos + forward - right + up, 1.0f);
 	v[2] = float4(pos - forward - right - up, 1.0f);
 	v[3] = float4(pos - forward - right + up, 1.0f);
-	pIn.normal = -normalize(right);
+	// pIn.normal = -normalize(right);
+	pIn.normal = UnityObjectToWorldNormal(-right);
 	add_face(IN[0], pIn, OUT, v);
 
 	// right
@@ -258,7 +219,8 @@ void geom_cube(point v2g IN[1], inout TriangleStream<g2f> OUT) {
 	v[1] = float4(pos + forward + right + up, 1.0f);
 	v[2] = float4(pos - forward + right - up, 1.0f);
 	v[3] = float4(pos + forward + right - up, 1.0f);
-	pIn.normal = normalize(right);
+	// pIn.normal = normalize(right);
+	pIn.normal = UnityObjectToWorldNormal(right);
 	add_face(IN[0], pIn, OUT, v);
 
 };

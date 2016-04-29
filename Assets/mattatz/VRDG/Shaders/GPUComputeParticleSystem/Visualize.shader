@@ -2,81 +2,78 @@
 
 	Properties {
 		_MainTex ("Base (RGB)", 2D) = "black" {}
-		_Ambient ("Ambient", Color) = (0.01, 0.01, 0.01, 1)
 		_Color ("Color", Color) = (0, 0, 0, 1)
 		_Size ("Size", Range(0.0001, 0.2)) = 0.05
 
-		_Emission ("Emission", Float) = 1.0
 		_Shininess ("Shininess", Float) = 2.0
 
-		_ClipDistance ("Clip distance", Vector) = (0.0, 0.1, -1, -1)
-
-		_Core ("Core distance", Vector) = (0, 0, 0, -1)
-		_ScaleDistance ("Scale distance", Vector) = (0.3, 0.45, -1, -1)
+		_CameraDistance ("Camera distance", Vector) = (0.0, 0.1, -1, -1)
+		_ClipDistance ("Camera clip distance", Vector) = (0.5, 0.95, -1, -1)
+		_Core ("Core world position", Vector) = (0, 0, 0, -1)
+		_CoreDistance ("Core clip distance", Vector) = (0.3, 0.45, -1, -1)
 	}
 
-	SubShader{
-			Tags { "RenderType" = "Opaque" }
-			LOD 200
+	SubShader {
+		Tags { "RenderType" = "Opaque" }
+		LOD 200
 
-			CGINCLUDE
+		CGINCLUDE
 
-			ENDCG
+		ENDCG
 
-			Pass {
-				Tags { "LightMode" = "ForwardBase" }
-				Lighting On ZWrite On
+		Pass {
+			Tags { "LightMode" = "ForwardBase" }
+			Lighting On ZWrite On
 			// ZWrite On ZTest Always
 
 			CGPROGRAM
 
 			#pragma multi_compile_fwdbase
+
 			#include "./VisualizeCommon.cginc"
+
 			#pragma vertex vert
 			#pragma geometry geom_cube
 			#pragma fragment frag
 
-			fixed4 _Ambient;
 			fixed4 _Color;
 
-			fixed _Emission;
 			fixed _Shininess;
 
+			// OSC
+			uniform float4 _LightColor;
+			uniform float _LightIntensity;
+
+			float3 GetCameraPosition()  { return _WorldSpaceCameraPos; }
+			float3 GetCameraForward()   { return -UNITY_MATRIX_V[2].xyz; }
+
 			fixed4 frag(g2f IN) : SV_Target{
-
-				// float dx = abs(IN.uv.x - 0.5);
-				// float dy = abs(IN.uv.y - 0.5);
-				// float s = smoothstep(0.3, 0.5, dx);
-				// float s = smoothstep(0.3, 0.5, dx) * smoothstep(0.3, 0.5, dy);
-				float s = 1.0;
-
-				fixed4 col = IN.col * _Color * s;
+				fixed4 col = IN.col * _Color;
 
 				float3 normal = IN.normal;
 				normal = normalize(normal);
-				// normal = normalize(mul(_Object2World, float4(normal, 0.0)).xyz);
 
+				// normal : world space normal
+				half3 bl = normalize(IN.wpos - GetCameraPosition());
+				half fr = pow(max(0.1, 1.0 + dot(bl, normal)), _Shininess);
+				// half fr = pow(1.0 + dot(bl, normal), 4.0);
+				float3 fl = - GetCameraForward() + float3(0, 0.5, 0);
+				col.rgb = dot(fl, normal) * _LightColor * _LightIntensity;
+				col.rgb += fr;
+				// col = col * (1 - _Dial[6]) + fr;
+
+				/*
 				float3 lightDir = normalize(IN.lightDir);
 				float3 viewDir = normalize(IN.viewDir);
 				float3 halfDir = normalize(lightDir + viewDir);
 
 				float nh = dot(normal, halfDir);
-				// float vh = dot(viewDir, halfDir);
-				// float nv = dot(normal, viewDir);
-				// float nl = dot(normal, lightDir);
 
-				float alpha = acos(nh);
-				fixed atten = LIGHT_ATTENUATION(IN);
+				float3 light = _LightIntensity * _LightColor.rgb;
+				float3 spec = light * max(0.1, pow(saturate(nh), _Shininess));
+				col.rgb += spec;
+				*/
 
-				float spec = max(0.1, pow(saturate(nh), _Shininess));
-
-				// float3 pl = point_lighting(IN.wpos, normal);
-				// col.rgb += pl;
-
-				// col.rgb *= exp(_Emission);
-				col.rgb *= spec * atten;
-
-				// return col;
 				col.a = 0.0;
 				return col;
 			}
@@ -85,7 +82,6 @@
 		}
 
 		Pass {
-
 			Name "ShadowCaster"
 			Tags { "LightMode" = "ShadowCaster" }
 			ZWrite On ZTest LEqual

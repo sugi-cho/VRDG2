@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Linq;
+using UnityEngine.Events;
 
 namespace sugi.cc
 {
@@ -17,36 +18,34 @@ namespace sugi.cc
         public int numOctahedron;
         public int numTetrahedron;
 
-        delegate void TBufferUpdater();
-        delegate void VBufferUpdater(int idx);
-
-        TBufferUpdater[] triUpdaters;
-        VBufferUpdater[] vertUpdaters;
-        [SerializeField]
-        int tUpdaterIdx = 0;
-        [SerializeField]
-        int v0UpdaterIdx = 0;
-        [SerializeField]
-        int v1UpdaterIdx = 1;
+        public UnityEvent[] onUpdateTriangles;
+        public IntEvent[] onUpdateVertices;
 
         int toriFrames;
 
-        ComputeBuffer vertexDataBuffer0;
-        ComputeBuffer vertexDataBuffer1;
-        ComputeBuffer vertexDataBuffer;
+        ComputeBuffer outVertexDataBuffer;
         ComputeBuffer[] targetVertexBuffers;
 
         ComputeBuffer triangleDataBuffer;
+        ComputeBuffer feedbackTriangleDataBuffer;
 
         ComputeBuffer toriIndicesBuffer;
         ComputeBuffer toriVerticesBuffer;
         ComputeBuffer toriNormalBuffer;
-        float lifeTime = 10f;
 
+        ComputeBuffer emitPosBuffer;
+        ComputeBuffer targetPosBuffer;
+
+        float lifeTime = 10f;
+        float timeScale = 1f;
+        float time = 0f;
+
+        Vector3 targetPos;
 
         // Use this for initialization
         void Start()
         {
+            Cursor.visible = false;
             var toriTriangles = toriData.indices.Length / 3;
             numIcosahedron = numTriangles / 20;
             numOctahedron = numTriangles / 8;
@@ -60,35 +59,34 @@ namespace sugi.cc
             toriVerticesBuffer = toriData.verticesBuffer;
             toriNormalBuffer = toriData.normalsBuffer;
 
-            vertexDataBuffer0 = Helper.CreateComputeBuffer<VertexData>(numVertices);
-            vertexDataBuffer1 = Helper.CreateComputeBuffer<VertexData>(numVertices);
-            vertexDataBuffer = Helper.CreateComputeBuffer<VertexData>(numVertices);
+            targetVertexBuffers = new[] {
+                Helper.CreateComputeBuffer<VertexData>(numVertices),
+                Helper.CreateComputeBuffer<VertexData>(numVertices)
+            };
+            outVertexDataBuffer = Helper.CreateComputeBuffer<VertexData>(numVertices);
             triangleDataBuffer = Helper.CreateComputeBuffer<TriangleData>(numTriangles);
+            feedbackTriangleDataBuffer = Helper.CreateComputeBuffer<TriangleData>(numTriangles);
 
-            targetVertexBuffers = new[] { vertexDataBuffer0, vertexDataBuffer1 };
+            emitPosBuffer = Helper.CreateComputeBuffer<Vector3>(numTriangles);
+            targetPosBuffer = Helper.CreateComputeBuffer<Vector3>(numTriangles);
 
             InitializeData();
-
-            triUpdaters = new TBufferUpdater[2] { UpdateFall, UpdateStop };
-            vertUpdaters = new VBufferUpdater[3] { UpdateToTriangle, UpdateToShape, UpdateToTori };
         }
 
         void InitializeData()
         {
             var kernel = compute.FindKernel("InitializeTriangles");
-            Debug.Log(kernel);
             compute.SetInt("_NumData", numTriangles);
             compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
             compute.Dispatch(kernel, numTriangles / 1024 + 1, 1, 1);
 
-            kernel = compute.FindKernel("InitializeVertices");
-            Debug.Log(kernel);
+            kernel = compute.FindKernel("ToTriangle");
             compute.SetInt("_NumData", numVertices);
             compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
-            compute.SetBuffer(kernel, "_OutVData", vertexDataBuffer);
+            compute.SetBuffer(kernel, "_OutVData", outVertexDataBuffer);
             compute.Dispatch(kernel, numVertices / 1024 + 1, 1, 1);
 
-            drawer.SetBuffer("_VData", vertexDataBuffer);
+            drawer.SetBuffer("_VData", outVertexDataBuffer);
             drawer.SetBuffer("_TData", triangleDataBuffer);
 
         }
@@ -96,48 +94,69 @@ namespace sugi.cc
         void OnDestroy()
         {
             //Release All Buffers
-            new[] { vertexDataBuffer, vertexDataBuffer0, vertexDataBuffer1, triangleDataBuffer, toriIndicesBuffer, toriNormalBuffer, toriVerticesBuffer }.Where(b => b != null).ToList().ForEach(b =>
-            {
-                b.Release();
-                b = null;
-            });
+            new[] { outVertexDataBuffer, targetVertexBuffers[0], targetVertexBuffers[1], triangleDataBuffer, feedbackTriangleDataBuffer, toriIndicesBuffer, toriNormalBuffer, toriVerticesBuffer }.Where(b => b != null).ToList().ForEach(b =>
+             {
+                 b.Release();
+                 b = null;
+             });
+            toriData.ReleaseBuffers();
         }
 
         // Update is called once per frame
         void Update()
         {
-            compute.SetVector("_Time", new Vector4(Time.timeSinceLevelLoad, Time.deltaTime, lifeTime)); //float4とかで、まとめて入れる
+            var dt = timeScale * Time.deltaTime;
+            time += dt;
 
-            triUpdaters[tUpdaterIdx]();
-            vertUpdaters[v0UpdaterIdx](0);
-            vertUpdaters[v1UpdaterIdx](1);
+            compute.SetVector("_Time", new Vector4(time, dt, lifeTime)); //float4とかで、まとめて入れる -> SetFloats使うといい。ちゃんとマニュアル見ないとはまる
+
+            SetTarget(time);
+            onUpdateTriangles[tUpdaterIdx].Invoke();
+            LifeUpdate();
+
+            onUpdateVertices[vUpdaterIdices[0]].Invoke(0);
+            onUpdateVertices[vUpdaterIdices[1]].Invoke(1);
             LerpVertexData();
         }
-        void UpdateTriangle(string kernelName)
+
+        void SetTarget(float t)
         {
-            var kernel = compute.FindKernel(kernelName);
-            if (kernel == -1)
-                Debug.LogError("InValid kernel name!! " + kernelName);
-            compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
-            compute.Dispatch(kernel, numTriangles / 1024 + 1, 1, 1);
+            t *= 0.5f;
+            targetPos.x = Mathf.Sin(t + Mathf.Cos(t));
+            targetPos.y = 0.5f + (1f + Mathf.Sin(t * 2.6f + Mathf.Sin(t))) * 0.1f;
+            targetPos.z = Mathf.Cos(t * 0.95f);
+            targetPos *= 30f + 10f * Mathf.Sin(t * 0.5f);
+
+            compute.SetVector("_TargetPos", targetPos);
+        }
+
+        void OnDrawGizmos()
+        {
+            Gizmos.DrawSphere(targetPos, 1f);
         }
 
         void LerpVertexData()
         {
             var kernel = compute.FindKernel("LerpVertex");
             compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
-            compute.SetBuffer(kernel, "_VData0", vertexDataBuffer0);
-            compute.SetBuffer(kernel, "_VData1", vertexDataBuffer1);
-            compute.SetBuffer(kernel, "_OutVData", vertexDataBuffer);
+            compute.SetBuffer(kernel, "_VData0", targetVertexBuffers[0]);
+            compute.SetBuffer(kernel, "_VData1", targetVertexBuffers[1]);
+            compute.SetBuffer(kernel, "_OutVData", outVertexDataBuffer);
             compute.Dispatch(kernel, numVertices / 1024 + 1, 1, 1);
 
-            drawer.SetBuffer("_vData", vertexDataBuffer);
+            kernel = compute.FindKernel("SetTDataFromVData");
+            compute.SetBuffer(kernel, "_VData0", outVertexDataBuffer);
+            compute.SetBuffer(kernel, "_TData", feedbackTriangleDataBuffer);
+            compute.Dispatch(kernel, numTriangles / 1024 + 1, 1, 1);
+
+            drawer.SetBuffer("_VData", outVertexDataBuffer);
+            drawer.SetBuffer("_TData", triangleDataBuffer);
         }
 
         void SetTDataFromVData()
         {
             var kernel = compute.FindKernel("SetTDataFromVData");
-            compute.SetBuffer(kernel, "_VData0", vertexDataBuffer);
+            compute.SetBuffer(kernel, "_VData0", outVertexDataBuffer);
             compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
             compute.Dispatch(kernel, numTriangles / 1024 + 1, 1, 1);
         }
@@ -148,8 +167,7 @@ namespace sugi.cc
             public Vector3 velocity;
             public Quaternion rotation;
             public float crossFade;
-            public float wireframe;
-            public float life;
+            public Vector2 life;
         }
 
         struct VertexData

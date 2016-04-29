@@ -54,7 +54,7 @@ namespace irishoak {
 				iTween.Hash (
 					"from", _textAlpha,
 					"to", 1.0f,
-					"time", 3.0f,
+					"time", 20.0f,
 					"onupdate", "__updateTextAlpha"
 				)
 			);
@@ -62,7 +62,8 @@ namespace irishoak {
 		}
 
 		public void Reset () {
-
+			
+			iTween.Stop (gameObject);
 			_textAlpha = 0.0f;
 			for (var i = 0; i < CharList.Count; i++) {
 				CharList [i].localPosition    = CharOrgPosList [i];

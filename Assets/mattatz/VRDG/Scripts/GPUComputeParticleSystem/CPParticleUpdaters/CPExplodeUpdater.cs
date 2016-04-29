@@ -61,6 +61,10 @@ namespace mattatz {
             }
         }
 
+        public void Explode () {
+            Explode(Random.insideUnitSphere * radius, size, intensity);
+        }
+
         public void Explode(Vector3 p, float radius, float intensity) {
             var exp = new Explosion(p, radius, intensity);
             explosions.Add(exp);
@@ -82,7 +86,7 @@ namespace mattatz {
 
         public override void OnTrigger(OSCUnit unit) {
             if(unit.buttons[1]) {
-                Explode(Random.insideUnitSphere * radius, size, intensity);
+                Explode();
             }
         }
 

@@ -11,7 +11,7 @@
 		_PulseRadiusNoise ("Pulse Width Noise", Float        ) = 0.01
 		_InnerRadius      ("Inner Radius",      Range(0,0.5) ) = 0.0
 		_OuterRadius      ("Outer Radius",      Range(0,0.5) ) = 0.5
-		_OuterFadeWidth   ("Outer Fade Width",  Range(0,0.05)) = 0.05
+		_OuterFadeWidth   ("Outer Fade Width",  Range(0,0.2)) = 0.2
 
 		_EmissionIntensity ("Emission Intensity", Float) = 1.0
 	}

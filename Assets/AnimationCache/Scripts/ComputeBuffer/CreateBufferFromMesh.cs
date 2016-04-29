@@ -6,6 +6,7 @@ using sugi.cc;
 public class CreateBufferFromMesh : MonoBehaviour
 {
     public Mesh mesh;
+    public float scale = 1f;
     ComputeBuffer buffer;
     public Controller.BufferAndDataCountEvent onCreate;
     public int vertsCount;
@@ -18,7 +19,7 @@ public class CreateBufferFromMesh : MonoBehaviour
             var indices = mesh.GetIndices(i);
             var newDataArray = indices.Select(idx => new VertexData()
             {
-                position = mesh.vertices[idx],
+                position = mesh.vertices[idx] * scale,
                 normal = mesh.normals[idx],
             }).ToArray();
             dataArray = Helper.MargeArray(dataArray, newDataArray);

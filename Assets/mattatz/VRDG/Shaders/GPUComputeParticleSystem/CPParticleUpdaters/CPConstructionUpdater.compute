@@ -1,31 +1,4 @@
-﻿/*
-float _Radius;
-float _Duration;
-float _T;
-
-[numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
-void Construct (uint3 id : SV_DispatchThreadID) {
-	Particle p = _Particles[id.x];
-
-	float2 seed = float2(p.ori.xy * 0.001 + p.ori.xz * 0.1);
-
-	float3 pos = random_point_on_sphere(seed) * _Radius;
-	float4 rot = rotate_angle_axis(nrand(seed) * 50.0, normalize(pos));
-
-	float height = smoothstep(-0.5, 0.5, p.ori.y);
-	float delay = height * _Duration;
-
-	// float t = saturate(_T - delay);
-	float t = _T / _Duration;
-	p.pos = lerp(pos, p.ori, t);
-	p.rot = lerp(rot, float4(0, 0, 0, 1), t);
-	p.scale = lerp(float3(0, 0, 0), float3(1, 1, 1), t);
-
-	_Particles[id.x] = p;
-}
-*/
-
-#pragma kernel Construct
+﻿#pragma kernel Construct
 #pragma kernel Octree
 
 #include "../GPUParticle.cginc"
@@ -36,6 +9,7 @@ void Construct (uint3 id : SV_DispatchThreadID) {
 
 #include "Assets/mattatz/Common/Shaders/Math.cginc"
 #include "Assets/mattatz/Common/Shaders/Random.cginc"
+#include "Assets/mattatz/Common/Shaders/Easing.cginc"
 #include "Assets/mattatz/Common/Shaders/Noise/SimplexNoiseGrad3D.cginc"
 
 struct Bound {
@@ -55,15 +29,22 @@ float _Intensity, _T;
 void Construct (uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 	int ref = _BoundsReferences[id.x];
+	Bound b = _Bounds[ref];
 
-	if(ref >= 0) {
-		Bound b = _Bounds[ref];
+	float delay = saturate(nrand(float2(ref, 0)) * 0.85);
 
-		float delay = nrand(float2(ref, 0));
-		float t = 1.0 - _T;
+	if(ref >= 0 && _T >= delay) {
+		float rem = 1.0 - delay;
+		float t = (_T - delay) / rem;
+		float tt = 1.0 - t;
 
-		p.pos = lerp(p.ori, mul(b.TRS, float4(p.ori - b.pos, 1.0)).xyz + b.pos, t);
-		p.rot = lerp(float4(0, 0, 0, 1), matrix_to_quaternion(b.TRS), t);
+		p.pos = lerp(p.ori, mul(b.TRS, float4(p.ori - b.pos, 1.0)).xyz + b.pos, tt);
+		p.rot = lerp(float4(0, 0, 0, 1), matrix_to_quaternion(b.TRS), tt);
+		p.scale = lerp(float3(0, 0, 0), float3(1, 1, 1), ease_out_expo(t));
+	} else {
+		p.pos = mul(b.TRS, float4(p.ori - b.pos, 1.0)).xyz + b.pos;
+		p.rot = matrix_to_quaternion(b.TRS);
+		p.scale = float3(0, 0, 0);
 	}
 
 	_Particles[id.x] = p;

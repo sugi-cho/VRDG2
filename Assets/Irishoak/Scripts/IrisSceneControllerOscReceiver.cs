@@ -13,8 +13,9 @@ namespace irishoak {
 		IPEndPoint endPoint;
 		Osc.Parser osc = new Osc.Parser ();
 
-		public IrisSceneController IrisSceneControllerScript;
-		public TitleCharController TitleCharControllerScript;
+		public IrisSceneController    IrisSceneControllerScript;
+		public TitleCharController    TitleCharControllerScript;
+		public GroundCircleController GroundCircleControllerScript;
 
 		public String mess;
 
@@ -67,6 +68,26 @@ namespace irishoak {
 
 				if (msg.path == "/title/reset") {
 					TitleCharControllerScript.Reset ();
+				}
+
+				if (msg.path == "/title/enable") {
+					IrisSceneControllerScript.EnableTitle ();
+				}
+
+				if (msg.path == "/title/disable") {
+					IrisSceneControllerScript.DisableTitle ();
+				}
+
+				if (msg.path == "/groundCircle/show") {
+					GroundCircleControllerScript.Show ();
+				}
+
+				if (msg.path == "/groundCircle/hide") {
+					GroundCircleControllerScript.Hide ();
+				}
+
+				if (msg.path == "/groundCircle/emissionRingPingPong") {
+					GroundCircleControllerScript.RotationPingPong ^= true;
 				}
 
 			

@@ -15,7 +15,7 @@ float _Scale;
 float _Intensity;
 float _Power;
 float _T;
-float _Time;
+float _Time, _DT;
 
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
 void Noise (uint3 id : SV_DispatchThreadID) {
@@ -24,7 +24,8 @@ void Noise (uint3 id : SV_DispatchThreadID) {
 	if(!p.gravity) {
 		float3 origin = p.ori;
 		float3 distorted = origin + snoise_grad((origin + _Seed + float3(0, _Time, 0)) * _Scale) * _Intensity;
-		p.pos = lerp(origin, distorted, _T);
+		// p.pos = lerp(origin, distorted, _T);
+		p.pos = lerp(p.pos, distorted, _DT);
 	}
 
 	_Particles[id.x] = p;

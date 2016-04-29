@@ -4,7 +4,6 @@
 
 #include "Assets/mattatz/Common/Shaders/Random.cginc"
 #include "Assets/mattatz/Common/Shaders/Math.cginc"
-#include "Assets/mattatz/Common/Shaders/Noise/SimplexNoise3D.cginc"
 
 #pragma kernel ApplyForce
 #pragma kernel Update
@@ -29,14 +28,14 @@ float4 update_rotation(float2 seed, float4 r, float3 v) {
 }
 
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
-void ApplyForce(uint3 id : SV_DispatchThreadID) {
+void ApplyForce (uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 	p.acc += _Force * p.mass;
 	_Particles[id.x] = p;
 }
 
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
-void Update(uint3 id : SV_DispatchThreadID) {
+void Update (uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 
 	p.vel += p.acc * p.mass * _DT;
