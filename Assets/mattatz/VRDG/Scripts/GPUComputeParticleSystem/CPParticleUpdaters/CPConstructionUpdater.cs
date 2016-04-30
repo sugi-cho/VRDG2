@@ -166,6 +166,15 @@ namespace mattatz {
             Animate();
         }
 
+        public void OnReplay () {
+            if (t <= 0f) return;
+
+            t = 1f;
+            StartCoroutine(Easing.Ease(duration, Easing.Quadratic.Out, (float tt) => {
+                this.t = tt;
+            }, 1f, 0f));
+        }
+
     }
 
 }

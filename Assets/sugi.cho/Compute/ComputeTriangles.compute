@@ -9,8 +9,8 @@
 
 #pragma kernel Stop
 #pragma kernel GotoPos
+#pragma kernel GathertoPos
 #pragma kernel GoUp
-#pragma kernel GoTarget
 #pragma kernel LifeSpan
 
 #pragma kernel ToTriangle
@@ -162,8 +162,9 @@ void LerpVertex(uint id : SV_DispatchThreadID) {
 	TriangleData t = _TData[tid];
 	VertexData v;
 
-	v.position = lerp(v0.position, v1.position, t.crossfade);
 	v.normal = lerp(v0.normal, v1.normal, t.crossfade);
+	v.position = lerp(v0.position, v1.position + v.normal, t.crossfade);
+	v.position = lerp(v.position, v1.position, t.crossfade);
 	_OutVData[id] = v;
 }
 [numthreads(1024, 1, 1)]
@@ -200,7 +201,7 @@ void PositionToFloor(uint id : SV_DispatchThreadID) {
 [numthreads(1024, 1, 1)]
 void PositionToCube(uint id : SV_DispatchThreadID) {
 	float3 pos = CubePos(id);
-	pos = rotateAngleAxis(pos, float3(0.0, 1.0, 0.2), time);
+	pos = rotateAngleAxis(pos, float3(0.0, 1.0, 0.2), time*0.3);
 	pos *= 7.5;
 	pos.y += 10.0;
 	_Positions[id] = pos;
@@ -208,7 +209,7 @@ void PositionToCube(uint id : SV_DispatchThreadID) {
 [numthreads(1024, 1, 1)]
 void PositionToSphere(uint id : SV_DispatchThreadID) {
 	float3 pos = SpherePos(id);
-	pos = rotateAngleAxis(pos, float3(0.0, 1.0, 0.2), time);
+	pos = rotateAngleAxis(pos, float3(0.0, 1.0, 0.0), time*0.3);
 	pos *= 7.5;
 	pos.y += 10.0;
 	_Positions[id] = pos;
@@ -223,6 +224,8 @@ void PositionToTarget(uint id : SV_DispatchThreadID) {
 [numthreads(1024, 1, 1)]
 void Stop(uint id : SV_DispatchThreadID) {
 	TriangleData td = _TData[id];
+	td.position += td.velocity * dt;
+	td.velocity *= exp(-_Time.y);
 	_TData[id] = td;
 }
 [numthreads(1024, 1, 1)]
@@ -253,6 +256,28 @@ void GotoPos(uint id : SV_DispatchThreadID) {
 	_TData[id] = td;
 }
 [numthreads(1024, 1, 1)]
+void GathertoPos(uint id : SV_DispatchThreadID) {
+	TriangleData td = _TData[id];
+	float3 pos = td.position;
+	float3 vel = td.velocity;
+	float4 rot = td.rotation;
+	float3 targetPos = _Positions[id];// _TData[id].position = targetPos; return;
+
+
+	float3 toVec = targetPos - pos;
+	float4 toRot = fromToRotation(float3(0, 0, 1), toVec + 0.01);
+
+	rot = lerp(rot, normalize(toRot), 0.5);
+	rot = normalize(rot);
+	vel = toVec * _Speed;
+	pos += vel * dt;
+
+	td.position = pos;
+	td.velocity = vel;
+	td.rotation = rot;
+	_TData[id] = td;
+}
+[numthreads(1024, 1, 1)]
 void GoUp(uint id : SV_DispatchThreadID) {
 	//float trianglRate = 
 	TriangleData td = _TData[id];
@@ -263,39 +288,10 @@ void GoUp(uint id : SV_DispatchThreadID) {
 
 	vel.y += _Time.y;
 	vel *= exp(-_Time.y);
-	pos += vel * _Time.y;
-
-	td.velocity = vel;
-	td.position = pos;
-	td.rotation = rot;
-	_TData[id] = td;
-}
-[numthreads(1024, 1, 1)]
-void GoTarget(uint id : SV_DispatchThreadID) {
-	TriangleData td = _TData[id];
-
-	float t = _Time.x;
-
-	float3 pos = td.position;
-	float3 vel = td.velocity;
-	float4 rot = td.rotation;
-	float3 target = _TargetPos;
-	float3 forward = normalize(rotateWithQuaternion(float3(0, 0, 1), rot));
-
-	float3 toVec = target - pos;
-	float3 up = float3(0.0, 1.0, 0.0);
-	float3 right = normalize(cross(up, toVec));
-
-	target = target + (up * sin(t + id * 0.01) + right * cos(t + id * 0.013)) * (5.0*sin(time *0.1) + frac((float)id*0.01) * 10.0);
-	toVec = normalize(target - pos);
-	float4 toRot = matrix_to_quaternion(getLookRotationMatrix(toVec, up + toVec - forward));
-	rot = lerp(rot, normalize(toRot), saturate(_Time.y*10.0));
-	rot = normalize(rot);
-	vel = normalize(rotateWithQuaternion(float3(0.0, 0.0, 1.0), rot)) * _Speed * (20.0 + 20.0*frac((float)id*0.01));
 	pos += vel * dt;
 
-	td.position = pos;
 	td.velocity = vel;
+	td.position = pos;
 	td.rotation = rot;
 	_TData[id] = td;
 }
@@ -306,8 +302,10 @@ void LifeSpan(uint id : SV_DispatchThreadID) {
 	float2 life = td.life;
 	life.x -= dt;
 
-	if (life.x < 0)
+	if (life.x < 0) {
 		life = _Life * (1.0 + frac(id*0.001)) * saturate(_Amount > (float)id / (float)_NumData);
+		td.position = _Positions[id];
+	}
 
 	td.life = life;
 	td.crossfade += ((_Crossfade > (float)id / (float)_NumData) - 0.5)*0.4*dt;
@@ -326,8 +324,8 @@ void ToTriangle(uint id : SV_DispatchThreadID) {
 	v.position += t.position;
 	v.normal = rotateWithQuaternion(v.normal, t.rotation);
 
-	v.position = lerp(v0.position, v.position, 0.1);
-	v.normal = lerp(v0.normal, v.normal, 0.1);
+	v.position = lerp(v0.position, v.position, 1);
+	v.normal = lerp(v0.normal, v.normal, 1);
 
 	_OutVData[id] = v;
 }
@@ -338,12 +336,13 @@ void ToShape(uint id : SV_DispatchThreadID) {
 	VertexData v = getShape(id);
 	TriangleData t = _TData[tidx];
 
+	v.position *= saturate(t.life.x * distance(t.life.x, t.life.y));
 	v.position = rotateWithQuaternion(v.position, t.rotation);
 	v.position += t.position;
 	v.normal = rotateWithQuaternion(v.normal, t.rotation);
 
-	v.position = lerp(v0.position, v.position, 0.1);
-	v.normal = lerp(v0.normal, v.normal, 0.1);
+	v.position = lerp(v0.position, v.position, 1);
+	v.normal = lerp(v0.normal, v.normal, 1);
 
 	_OutVData[id] = v;
 }
@@ -354,12 +353,13 @@ void ToTori(uint id : SV_DispatchThreadID) {
 	VertexData v = getTori(id, id / _NumData);
 	TriangleData t = _TData[tidx];
 
+	v.position *= saturate(t.life.x * distance(t.life.x, t.life.y));
 	v.position = rotateWithQuaternion(v.position, t.rotation);
 	v.position += t.position;
 	v.normal = rotateWithQuaternion(v.normal, t.rotation);
 
-	v.position = lerp(v0.position, v.position, 0.1);
-	v.normal = lerp(v0.normal, v.normal, 0.1);
+	v.position = lerp(v0.position, v.position, 1);
+	v.normal = lerp(v0.normal, v.normal, 1);
 
 	_OutVData[id] = v;
 }

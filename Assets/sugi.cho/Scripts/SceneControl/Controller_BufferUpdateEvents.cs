@@ -36,15 +36,6 @@ namespace sugi.cc
 
         public void UpdateStop()
         {
-            var kernel = compute.FindKernel("Stop");
-            if (kernel == -1)
-                Debug.LogError("InValid Kernel name");
-            compute.SetInt("_NumData", numTriangles);
-            compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
-            compute.Dispatch(kernel, numTriangles / 1024 + 1, 1, 1);
-        }
-        public void UpdateFall()
-        {
             var kernel = compute.FindKernel("GoUp");
             if (kernel == -1)
                 Debug.LogError("InValid Kernel name");
@@ -67,6 +58,16 @@ namespace sugi.cc
         {
             SetTargetPosBuffer();
             var kernel = compute.FindKernel("GotoPos");
+            if (kernel == -1)
+                Debug.LogError("InValid Kernel name");
+            compute.SetBuffer(kernel, "_Positions", targetPosBuffer);
+            compute.SetBuffer(kernel, "_TData", triangleDataBuffer);
+            compute.Dispatch(kernel, numTriangles / 1024 + 1, 1, 1);
+        }
+        public void UpdateGatherToPos()
+        {
+            SetTargetPosBuffer();
+            var kernel = compute.FindKernel("GathertoPos");
             if (kernel == -1)
                 Debug.LogError("InValid Kernel name");
             compute.SetBuffer(kernel, "_Positions", targetPosBuffer);

@@ -39,6 +39,7 @@ namespace mattatz {
         [SerializeField] int port = 8888;
 
         [SerializeField] UnityEvent onBegin;
+        [SerializeField] UnityEvent onReplay;
         [SerializeField] UnityEvent onStart;
         [SerializeField] OSCUnitTriggerEvent onTrigger;
         [SerializeField] OSCUnitControlEvent onControl;
@@ -87,8 +88,15 @@ namespace mattatz {
                 }
             } else if (address[1] == "mattatz") {
 
-                if(address[2] == "begin") {
+                if (address[2] == "begin") {
                     onBegin.Invoke();
+                    return;
+                } else if(address[2] == "replay") {
+                    for(int i = 0, n = onReplay.GetPersistentEventCount(); i < n; i++) {
+                        var behaviour = onReplay.GetPersistentTarget(i) as MonoBehaviour;
+                        behaviour.gameObject.SetActive(true);
+                    }
+                    onReplay.Invoke();
                     return;
                 } else if(address[2] == "start") {
                     onStart.Invoke();

@@ -97,7 +97,6 @@
 						o.normal = vData.normal;
 						o.wPos = vData.position;
 						o.wPos.xyz = center + saturate(0.4*tData.life.x * distance(tData.life.x, tData.life.y)) * (o.wPos.xyz - center);
-						//o.wPos.xyz = center + _SC*(o.wPos.xyz - center);
 
 						o.wPos *= _WScale;
 						o.wPos += _WOffset;
@@ -105,7 +104,7 @@
 						o.vertex = mul(UNITY_MATRIX_MVP, half4(o.wPos,1));
 						o.bary = half3(i == 0,i == 1,i == 2);
 						o.wireframe = 0.5;
-						o.color = tData.life.xyxy;// half4(tData.velocity + 0.01, 0);
+						o.color = half4(tData.velocity + 0.01, 0);
 						triStream.Append(o);
 					}
 
@@ -115,7 +114,6 @@
 
 			fixed4 frag(v2f i) : SV_Target
 			{
-				return half4(i.color.xyx,0);
 				half3 d = fwidth(i.bary);
 				half3 a3 = smoothstep(half3(0,0,0), d*1.0, i.bary);
 				half w = 1.0 - min(min(a3.x,a3.y),a3.z);

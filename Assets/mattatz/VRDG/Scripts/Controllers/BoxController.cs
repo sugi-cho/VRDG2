@@ -41,6 +41,14 @@ namespace mattatz {
             }, 0f, 1f));
         }
 
+        public void Replay () {
+            started = false;
+
+            StartCoroutine(Easing.Ease(duration, Easing.Quadratic.Out, (float t) => {
+                metaballMat.SetFloat("_Alpha", t);
+            }, 1f, 0f));
+        }
+
         public void OnTrigger (OSCUnit unit) {
             if (unit.index >= system.updaters.Count) return;
 
