@@ -18,7 +18,7 @@
 3. Controller.SetVertices1UpdateIdx
 4. Crossfade
 5. speed
-6. targetScale
+6. 
 7. Controller.SetEmitPosIdx
 8. Controller.SetTargetPosIdx
 

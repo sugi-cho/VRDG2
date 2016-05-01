@@ -25,13 +25,13 @@ RWStructuredBuffer<int> _BoundsReferences;
 float _Intensity, _T;
 
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
-void Extrude (uint3 id : SV_DispatchThreadID) {
+void Extrude(uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 	int ref = _BoundsReferences[id.x];
 
-	if(!p.gravity && ref >= 0) {
+	if (!p.gravity && ref >= 0) {
 		Bound b = _Bounds[ref];
-		
+
 		p.pos = lerp(p.ori, mul(b.TRS, float4(p.ori - b.pos, 1.0)).xyz + b.pos, _T);
 		p.rot = lerp(float4(0, 0, 0, 1), matrix_to_quaternion(b.TRS), _T);
 		p.gravity = b.gravity;
@@ -43,23 +43,24 @@ void Extrude (uint3 id : SV_DispatchThreadID) {
 	_Particles[id.x] = p;
 }
 
-bool contains (Bound b, float3 pos) {
+
+bool contains(Bound b, float3 pos) {
 	return (
-		abs(pos.x - b.pos.x) <= b.size.x && 
-		abs(pos.y - b.pos.y) <= b.size.y && 
+		abs(pos.x - b.pos.x) <= b.size.x &&
+		abs(pos.y - b.pos.y) <= b.size.y &&
 		abs(pos.z - b.pos.z) <= b.size.z
-	);
+		);
 }
 
 [numthreads(THREAD_X, THREAD_Y, THREAD_Z)]
-void Octree (uint3 id : SV_DispatchThreadID) {
+void Octree(uint3 id : SV_DispatchThreadID) {
 	Particle p = _Particles[id.x];
 
 	int index = -1;
 
-	for(int i = 0; i < _BoundsCount; i++) {
+	for (int i = 0; i < _BoundsCount; i++) {
 		Bound b = _Bounds[i];
-		if(contains(b, p.ori)) {
+		if (contains(b, p.ori)) {
 			index = i;
 			break;
 		}
