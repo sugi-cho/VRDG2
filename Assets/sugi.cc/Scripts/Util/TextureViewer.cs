@@ -5,87 +5,79 @@ using System.Linq;
 
 namespace sugi.cc
 {
-	public class TextureViewer : MonoBehaviour
-	{
-		public static KeyCode showKey = KeyCode.T;
-		#region Instance
-		static TextureViewer Instance
-		{
-			get
-			{
-				if (_Instance == null)
-				{
-					_Instance = FindObjectOfType<TextureViewer>();
-					if (_Instance == null)
-						_Instance = new GameObject("TextureViewer").AddComponent<TextureViewer>();
-				}
-				return _Instance;
-			}
-		}
-		static TextureViewer _Instance;
-		#endregion
+    public class TextureViewer : MonoBehaviour
+    {
+        public static KeyCode showKey = KeyCode.T;
+        public static void AddTexture(Texture tex) { }
 
-		public static void AddTexture(Texture tex)
-		{
-			Instance.Add(tex);
-		}
+        bool show;
+        int viewingIndex;
+        Texture[] textures;
+        Rect windowRect = Rect.MinMaxRect(0, 0, 512f, 512f);
+        Texture currentTex;
 
-		bool show;
-		int viewingIndex;
-		List<Texture> textureList = new List<Texture>();
-		Rect windowRect = Rect.MinMaxRect(0, 0, 512f, 512f);
-		Texture currentTex;
+        RenderTexture showTex;
 
-		void Add(Texture tex)
-		{
-			textureList = textureList.Where(b => b != null).ToList();
-			textureList.Add(tex);
-		}
-		void SetCurrentTex()
-		{
-			viewingIndex = (int)Mathf.Repeat((float)viewingIndex, (float)textureList.Count);
-			currentTex = textureList[viewingIndex];
-			windowRect.width = currentTex.width + 32;
-			windowRect.height = currentTex.height + 32;
-		}
-		void Update()
-		{
-			if (show)
-			{
-				if (Input.GetKeyDown(KeyCode.LeftArrow))
-					viewingIndex--;
-				else if (Input.GetKeyDown(KeyCode.RightArrow))
-					viewingIndex++;
-				SetCurrentTex();
-			}
+        Material blitMat { get { if (_mat == null) _mat = new Material(Shader.Find("Hidden/ShowTex/CombineAlpha")); return _mat; } }
+        Material _mat;
+        void CreateRt()
+        {
+            if (Helper.CheckRtSize(currentTex, showTex))
+                showTex = Helper.CreateRenderTexture(currentTex.width, currentTex.height, showTex, RenderTextureFormat.ARGB32);
+            showTex.name = currentTex.name;
+            Graphics.Blit(currentTex, showTex, blitMat);
+        }
 
-			if (!Input.GetKeyDown(showKey) || textureList.Count == 0)
-				return;
-			show = !show;
-			Cursor.visible = show;
-			if (show)
-				SetCurrentTex();
-		}
-		void OnGUI()
-		{
-			if (!show || textureList.Count == 0)
-				return;
-			windowRect = GUI.Window(1, windowRect, OnWindow, currentTex.name);
-		}
-		void OnWindow(int id)
-		{
-			GUILayout.BeginVertical();
-			GUILayout.FlexibleSpace();
-			GUILayout.BeginHorizontal();
-			GUILayout.FlexibleSpace();
+        void SetCurrentTex()
+        {
+            viewingIndex = (int)Mathf.Repeat(viewingIndex, textures.Length);
+            currentTex = textures[viewingIndex];
+            windowRect.width = currentTex.width + 32;
+            windowRect.height = currentTex.height + 32;
+            CreateRt();
+        }
+        void Update()
+        {
+            if (show)
+            {
+                if (Input.GetKeyDown(KeyCode.LeftArrow))
+                    viewingIndex--;
+                else if (Input.GetKeyDown(KeyCode.RightArrow))
+                    viewingIndex++;
+                textures = FindObjectsOfType<Texture>().Where(b => b != showTex).ToArray();
+                SetCurrentTex();
+            }
 
-			GUILayout.Label(currentTex);
+            if (!Input.GetKeyDown(showKey))
+                return;
+            show = !show;
+            Cursor.visible = show;
+        }
+        void OnGUI()
+        {
+            if (!show)
+                return;
+            if (currentTex == null)
+            {
+                textures = FindObjectsOfType<Texture>();
+                SetCurrentTex();
+            }
+            windowRect = GUI.Window(1, windowRect, OnWindow, currentTex.name);
+        }
+        void OnWindow(int id)
+        {
+            GUILayout.BeginVertical();
+            GUILayout.FlexibleSpace();
+            GUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
 
-			GUILayout.FlexibleSpace();
-			GUILayout.EndHorizontal();
-			GUILayout.FlexibleSpace();
-			GUILayout.EndVertical();
-			GUI.DragWindow();
-		}
-	}
+            GUILayout.Label(showTex);
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndVertical();
+            GUI.DragWindow();
+        }
+    }
 }

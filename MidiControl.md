@@ -29,3 +29,7 @@
 - roatation
 - speed
 - timeScale
+
+##MIDI情報をOSCとして受けている
+- /osc/slider/1-8
+- /osc/dial/1-8

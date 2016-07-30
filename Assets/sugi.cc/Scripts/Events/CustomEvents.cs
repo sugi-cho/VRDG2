@@ -5,21 +5,34 @@ using System.Collections;
 namespace sugi.cc
 {
     [System.Serializable]
+    public class BoolEvent : UnityEvent<bool> { }
+    [System.Serializable]
     public class IntEvent : UnityEvent<int> { }
     [System.Serializable]
     public class FloatEvent : UnityEvent<float> { }
     [System.Serializable]
-    public class ColorEvent : UnityEvent<Color> { }
+    public class FloatArrayEvent : UnityEvent<float[]> { }
     [System.Serializable]
     public class TextureEvent : UnityEvent<Texture> { }
+    [System.Serializable]
+    public class Texture2DEvent : UnityEvent<Texture2D> { }
     [System.Serializable]
     public class RenderTextureEvent : UnityEvent<RenderTexture> { }
     [System.Serializable]
     public class Matrix4x4Event : UnityEvent<Matrix4x4> { }
+
+    #region set to property
     [System.Serializable]
-    public class ComputeBufferEvent : UnityEvent<ComputeBuffer> { }
+    public class StringValueEvent : UnityEvent<string, object> { }
     [System.Serializable]
-    public class PropComuteBufferEvent : UnityEvent<string, ComputeBuffer> { }
+    public class StringFloatEvent : UnityEvent<StringFloatPair> { }
     [System.Serializable]
-    public class MeshEvent : UnityEvent<Mesh> { }
+    public class StringColorEvent : UnityEvent<StringColorPair> { }
+    [System.Serializable]
+    public class StringVectorEvent : UnityEvent<StringVectorPair> { }
+    [System.Serializable]
+    public class StringTextureEvent : UnityEvent<StringTexturePair> { }
+    [System.Serializable]
+    public class StringMatrixEvent : UnityEvent<StringMatrixPair> { }
+    #endregion
 }

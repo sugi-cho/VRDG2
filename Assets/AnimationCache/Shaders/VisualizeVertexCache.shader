@@ -7,8 +7,6 @@
 		_Keyframes("keyframeCount",Float) = 0
 		_AnimLength("clip length",Float) = 0
 		_MainTex("Texture", 2D) = "white" {}
-		_Amount("amount", Range(0,1)) = 0
-		_T("time", Range(0,1)) = 0
 	}
 		CGINCLUDE
 #include "UnityCG.cginc"
@@ -25,6 +23,7 @@
 			float2 uv : TEXCOORD0;
 			float3 normal : TEXCOORD1;
 			float triID : TEXCOORD2;
+			int iid : TEXCOORD3;
 			float4 vertex : SV_POSITION;
 		};
 
@@ -39,7 +38,7 @@
 		sampler2D _MainTex;
 		float4 _MainTex_ST;
 
-		float _VCount, _TCount, _Keyframes, _AnimLength, _Amount, _T;
+		float _VCount, _TCount, _Keyframes, _AnimLength;
 
 		StructuredBuffer<iData> _IData;
 		StructuredBuffer<uint> _Indices;
@@ -50,7 +49,7 @@
 		v2f vert(uint vid : SV_VertexID, uint iid : SV_InstanceID)
 		{
 			iData i = _IData[iid];
-			float t = fmod(_T * _Keyframes, _Keyframes);
+			float t = fmod(iid + _Time.y * _Keyframes, _Keyframes);
 			float f0 = floor(t);
 			float f1 = fmod(f0 + 1, _Keyframes);
 			t = frac(t);
@@ -69,12 +68,14 @@
 			o.normal = normal;
 			o.triID = floor(vid / 3);
 			o.uv = uv;
+			o.iid = iid;
 			return o;
 		}
 
 		[maxvertexcount(3)]
 		void geom(triangle v2f v[3], inout TriangleStream<v2f> triStream)
 		{
+			float val = sin(_Time.z + v[0].iid);
 			float id = v[0].triID;
 			float t = (id + 1) / _TCount;
 
@@ -88,11 +89,11 @@
 
 			for (int i = 0; i < 3; i++) {
 				float3 p0 = v[i].vertex.xyz;
-				float3 p1 = center + size*rotateAngleAxis(tangent, normal, -i*2.0 / 3.0*UNITY_PI + _Time.y*(1.0 + t));
+				float3 p1 = center + size*rotateAngleAxis(tangent, normal, -i*2.0 / 3.0*UNITY_PI + _Time.y*(1.0 + t)) + _IData[v[i].iid].position;
 
-				v[i].vertex.xyz = lerp(p0, p1, saturate(_Amount));
+				v[i].vertex.xyz = lerp(p0, p1, saturate(val));
 				v[i].vertex = mul(UNITY_MATRIX_VP, v[i].vertex);
-				v[i].normal = lerp(v[i].normal, normal, saturate(_Amount));
+				v[i].normal = lerp(v[i].normal, normal, saturate(val));
 
 				triStream.Append(v[i]);
 			}

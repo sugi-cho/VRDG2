@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Events;
 using System.Collections;
 using System.Linq;
 using sugi.cc;
@@ -22,3 +23,4 @@ public class CreatePointMesh : MonoBehaviour
         onCreateMesh.Invoke(mesh);
     }
 }
+public class MeshEvent : UnityEvent<Mesh> { }
