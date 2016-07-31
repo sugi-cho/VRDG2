@@ -1,0 +1,19 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel colorIsNoise
+
+// you can use .cginc files!
+#include "Assets/CGINC/ClassicNoise3D.cginc"
+#define dx 0.01
+
+RWTexture3D<float> _Rt3d;
+float2 _TexelSize;
+int _Repeat;
+
+[numthreads(8, 8, 8)]
+void colorIsNoise(uint3 id : SV_DispatchThreadID)
+{
+	float3 pos = id.xyz * _TexelSize.x;
+	float noise = pnoise(pos*_Repeat, _Repeat);
+
+	_Rt3d[id.xyz] = noise;
+}
