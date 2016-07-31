@@ -23,4 +23,3 @@ public class CreatePointMesh : MonoBehaviour
         onCreateMesh.Invoke(mesh);
     }
 }
-public class MeshEvent : UnityEvent<Mesh> { }
